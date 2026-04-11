@@ -820,18 +820,21 @@ describe('State', () => {
     });
 
     it('should resolve bottom sheet confirm and prompt through sheet results', async () => {
-        vi.useFakeTimers();
+        // 禁用动画以确保测试快速完成
+        const originalAnim = State.animations;
+        State.animations = false;
 
         const confirmPromise = BottomSheet.confirm('确认测试');
         document.querySelector('.bottom-sheet-footer .btn-p').dispatchEvent(new MouseEvent('click', { bubbles: true }));
         await expect(confirmPromise).resolves.toBe(true);
-        vi.advanceTimersByTime(BottomSheet.CLOSE_ANIMATION_MS);
 
         const promptPromise = BottomSheet.prompt('输入测试', '12');
-        vi.advanceTimersByTime(100);
         const input = document.querySelector('.bottom-sheet-prompt-input');
         input.value = '34';
         document.querySelector('.bottom-sheet-footer .btn-p').dispatchEvent(new MouseEvent('click', { bubbles: true }));
         await expect(promptPromise).resolves.toBe('34');
+
+        // 恢复动画设置
+        State.animations = originalAnim;
     });
 });

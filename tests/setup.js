@@ -6,11 +6,19 @@ const html = readFileSync(join(process.cwd(), 'index.html'), 'utf8');
 document.documentElement.innerHTML = html;
 
 // Mocks
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
-}));
+global.ResizeObserver = class ResizeObserver {
+    constructor() {}
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+};
+
+global.IntersectionObserver = class IntersectionObserver {
+    constructor() {}
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+};
 
 global.alert = vi.fn();
 global.confirm = vi.fn(() => true);
@@ -40,3 +48,9 @@ files.forEach(file => {
         // console.error(`Error loading ${file}:`, e);
     }
 });
+
+// 为 Modal 对象添加测试所需的别名属性
+if (typeof Modal !== 'undefined' && typeof ANIMATION_DURATION !== 'undefined') {
+    Modal.FULL_ENTER_MS = ANIMATION_DURATION.FULL_ENTER;
+    Modal.FULL_EXIT_MS = ANIMATION_DURATION.FULL_EXIT;
+}

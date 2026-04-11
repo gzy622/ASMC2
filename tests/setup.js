@@ -24,7 +24,11 @@ global.alert = vi.fn();
 global.confirm = vi.fn(() => true);
 global.prompt = vi.fn();
 
-// 首先加载 core.js 以定义全局常量
+// 首先加载 utils.js 以定义全局常量和工具函数
+const utilsContent = readFileSync(join(process.cwd(), 'utils.js'), 'utf8');
+(new Function(utilsContent))();
+
+// 然后加载 core.js（保留向后兼容）
 const coreContent = readFileSync(join(process.cwd(), 'core.js'), 'utf8');
 (new Function(coreContent))();
 

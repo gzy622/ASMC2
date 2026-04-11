@@ -12,9 +12,8 @@
     align-items: flex-start;
     padding: 20px;
     border-radius: 20px;
-    background: linear-gradient(145deg,#fffaf2,#eef7ff 58%,#f8fbff);
-    border: 1px solid rgba(15,23,42,.08);
-    box-shadow: 0 12px 28px rgba(15,23,42,.06);
+    background: #fff;
+    border: 1px solid rgba(15,23,42,.12);
 }
 
 .trend-hero-title {

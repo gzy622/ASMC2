@@ -279,152 +279,6 @@
                     heavy: () => renderList({ chunked: true })
                 });
             },
-            roster() {
-                let nextId = 1; const entries = State.list.map(l => ({ ...State.parseRosterLine(l), _rowId: nextId++ }));
-                const { root, listEl, topHost, summaryHost } = this.ctx.views.createRosterShell(), pool = new Map();
-                const { bottomSheet, views } = this.ctx;
-                let mounted = new Set();
-                let chrome = null;
-                let work = null;
-                let renderToken = 0;
-                const empty = document.createElement('div');
-                empty.className = 'roster-empty';
-                empty.textContent = '暂无学生，请点击上方新增。';
-                const isViewActive = () => Modal.isOpen && Modal.body.contains(root);
-                const mountChrome = () => {
-                    if (chrome) return chrome;
-                    chrome = views.createRosterChrome();
-                    topHost.replaceChildren(chrome.topbar);
-                    summaryHost.replaceChildren(chrome.summary);
-                    chrome.toolbar.onclick = e => {
-                        const act = e.target.closest('[data-act]')?.dataset.act;
-                        if (act === 'add') {
-                            entries.push({ id: '', name: '', noEnglish: false, _rowId: nextId++ });
-                            renderAllRows({ focusLast: true });
-                        }
-                        else if (act === 'autonum') {
-                            entries.forEach((e, i) => e.id = String(i + 1).padStart(2, '0'));
-                            renderAllRows();
-                        }
-                        else if (act === 'sort-seat') {
-                            entries.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
-                            renderAllRows();
-                        }
-                        else if (act === 'clean') {
-                            for (let i = entries.length - 1; i >= 0; i--) if (!entries[i].id && !entries[i].name) entries.splice(i, 1);
-                            renderAllRows();
-                        }
-                    };
-                    chrome.submitBar.onclick = e => {
-                        const act = e.target.closest('[data-act]')?.dataset.act;
-                        if (act === 'cancel') Modal.close(false);
-                        else if (act === 'save') saveRoster();
-                    };
-                    return chrome;
-                };
-                const saveRoster = () => {
-                    try {
-                        State.list = entries.filter(e => e.id || e.name).map(e => `${e.id}${e.name ? ` ${e.name}` : ''}${e.noEnglish ? ' #非英语' : ''}`);
-                        State.parseRoster();
-                        State.save({ dirtyData: false, dirtyList: true, invalidateDerived: false });
-                        Modal.close(true);
-                    }
-                    catch (err) { bottomSheet.alert(err.message); }
-                };
-                const renderSummary = () => {
-                    const refs = mountChrome();
-                    let validCount = 0, excludedCount = 0;
-                    entries.forEach(e => {
-                        if (!e.id && !e.name) return;
-                        validCount++;
-                        if (e.noEnglish) excludedCount++;
-                    });
-                    refs.countEl.textContent = `共 ${validCount} 人`;
-                    refs.excludedEl.textContent = `排除英语 ${excludedCount} 人`;
-                };
-                const renderAllRows = ({ focusLast = false, chunked = !!work?.animated && entries.length > 18 } = {}) => {
-                    const token = ++renderToken;
-                    const next = new Set();
-                    const useChunked = !!(chunked && work?.animated);
-                    listEl.replaceChildren();
-                    if (!entries.length) {
-                        listEl.replaceChildren(empty);
-                        mounted.forEach(id => pool.get(id)?.remove());
-                        mounted = next;
-                        renderSummary();
-                        return;
-                    }
-                    let index = 0;
-                    const batchSize = useChunked ? 12 : entries.length;
-                    const finishRender = () => {
-                        mounted.forEach(id => { if (!next.has(id)) pool.get(id)?.remove(); });
-                        mounted = next;
-                        renderSummary();
-                        if (focusLast) listEl.lastElementChild?.querySelector('[data-r="name"]')?.focus();
-                    };
-                    const paintBatch = () => {
-                        if (token !== renderToken || !isViewActive()) return;
-                        const frag = document.createDocumentFragment();
-                        const end = Math.min(index + batchSize, entries.length);
-                        for (; index < end; index++) {
-                            const e = entries[index];
-                            let r = pool.get(e._rowId);
-                            if (!r) {
-                                r = document.createElement('div');
-                                r.className = 'roster-row';
-                                r.innerHTML = `<input class="input-ui roster-seat" data-r="id" placeholder="座号"><input class="input-ui roster-name" data-r="name" placeholder="姓名"><label class="roster-check"><input type="checkbox" data-r="ex">排除</label><button class="btn btn-d roster-del" data-act="del">&times;</button>`;
-                                pool.set(e._rowId, r);
-                            }
-                            r.dataset.idx = index;
-                            r.querySelector('[data-r="id"]').value = e.id;
-                            r.querySelector('[data-r="name"]').value = e.name;
-                            r.querySelector('[data-r="ex"]').checked = !!e.noEnglish;
-                            frag.appendChild(r);
-                            next.add(e._rowId);
-                        }
-                        listEl.appendChild(frag);
-                        if (index < entries.length && useChunked) {
-                            work.frame(paintBatch);
-                            return;
-                        }
-                        finishRender();
-                    };
-                    paintBatch();
-                };
-                listEl.oninput = e => {
-                    const r = e.target.closest('.roster-row');
-                    if (!r) return;
-                    const i = Number(r.dataset.idx);
-                    if (!Number.isFinite(i)) return;
-                    if (e.target.dataset.r === 'id') entries[i].id = e.target.value;
-                    else if (e.target.dataset.r === 'name') entries[i].name = e.target.value;
-                    renderSummary();
-                };
-                listEl.onchange = e => {
-                    if (e.target.dataset.r !== 'ex') return;
-                    const r = e.target.closest('.roster-row');
-                    if (!r) return;
-                    const i = Number(r.dataset.idx);
-                    if (!Number.isFinite(i)) return;
-                    entries[i].noEnglish = e.target.checked;
-                    renderSummary();
-                };
-                listEl.onclick = e => {
-                    const del = e.target.closest('[data-act="del"]');
-                    if (!del) return;
-                    const row = del.closest('.roster-row');
-                    if (!row) return;
-                    const i = Number(row.dataset.idx);
-                    if (!Number.isFinite(i)) return;
-                    entries.splice(i, 1);
-                    renderAllRows();
-                };
-                Modal.show({ title: '', content: root, type: 'full', loadingMask: false });
-                work = this.deferFullscreenWork(root, {
-                    aboveFold: () => { mountChrome(); renderSummary(); },
-                    heavy: () => renderAllRows({ chunked: true })
-                });
-            },
             exp() {
                 const b = new Blob([JSON.stringify({ list: State.list, data: State.data, prefs: State.normalizePrefs(State.prefs) })], { type: 'application/json' }), a = document.createElement('a');
                 a.href = URL.createObjectURL(b); a.download = formatBackupFileName(new Date()); a.click();
@@ -791,7 +645,7 @@
             },
             studentOverview() {
                 const ui = this.ctx.views.createStudentOverviewShell();
-                const { modal, toast, views } = this.ctx;
+                const { modal, toast, views, bottomSheet } = this.ctx;
                 let chrome = null;
                 let work = null;
                 let renderToken = 0;
@@ -800,29 +654,33 @@
                 let currentSearch = '';
                 const cardPool = new Map();
                 let mounted = new Set();
+                let nextRowId = 1;
+                let entries = State.list.map(l => ({ ...State.parseRosterLine(l), _rowId: nextRowId++ }));
                 const isViewActive = () => Modal.isOpen && Modal.body.contains(ui.root);
                 const mountChrome = () => {
                     if (chrome) return chrome;
                     chrome = views.createStudentOverviewChrome();
                     ui.heroHost.replaceChildren(chrome.hero);
                     ui.toolbarHost.replaceChildren(chrome.toolbar);
-                    ui.filterHost.replaceChildren();
+                    ui.editToolbarHost.replaceChildren(chrome.editToolbar);
                     Object.assign(ui, chrome);
                     bindHandlers();
                     return chrome;
                 };
                 const getStudentStats = () => {
                     const stats = [];
-                    for (const stu of State.roster) {
+                    for (const entry of entries) {
+                        if (!entry.id && !entry.name) continue;
                         let totalAsgs = 0;
                         let completedAsgs = 0;
                         let scoredAsgs = 0;
                         let totalScore = 0;
                         for (const asg of State.data) {
+                            const stu = { id: entry.id, name: entry.name, noEnglish: entry.noEnglish };
                             if (!State.isStuIncluded(asg, stu)) continue;
                             if (currentSubject !== 'all' && State.getAsgSubject(asg) !== currentSubject) continue;
                             totalAsgs++;
-                            const record = asg.records?.[stu.id];
+                            const record = asg.records?.[entry.id];
                             if (record?.done) completedAsgs++;
                             const score = State.parseNumericScore(record?.score);
                             if (score != null) {
@@ -833,15 +691,13 @@
                         const completionRate = totalAsgs > 0 ? Math.round((completedAsgs / totalAsgs) * 100) : 0;
                         const avgScore = scoredAsgs > 0 ? Number((totalScore / scoredAsgs).toFixed(1)) : null;
                         stats.push({
-                            id: stu.id,
-                            name: stu.name,
-                            noEnglish: stu.noEnglish,
+                            ...entry,
                             totalAsgs,
                             completedAsgs,
                             completionRate,
                             scoredAsgs,
                             avgScore,
-                            searchText: `${stu.id} ${stu.name}`
+                            searchText: `${entry.id} ${entry.name}`
                         });
                     }
                     return stats;
@@ -867,9 +723,21 @@
                     const avgCompletion = totalStudents > 0 ? Math.round(stats.reduce((sum, s) => sum + s.completionRate, 0) / totalStudents) : 0;
                     const studentsWithScore = stats.filter(s => s.avgScore != null).length;
                     const avgScore = studentsWithScore > 0 ? Number((stats.reduce((sum, s) => sum + (s.avgScore ?? 0), 0) / studentsWithScore).toFixed(1)) : '--';
-                    chrome.summaryEl.innerHTML = `<div>共 ${totalStudents} 人</div><div>平均完成率 ${avgCompletion}%</div><div>平均成绩 ${avgScore}</div>`;
+                    const excludedCount = entries.filter(e => e.noEnglish && (e.id || e.name)).length;
+                    chrome.summaryEl.innerHTML = `<div>共 ${totalStudents} 人</div><div>排除英语 ${excludedCount} 人</div><div>平均完成率 ${avgCompletion}%</div><div>平均成绩 ${avgScore}</div>`;
                 };
-                const renderList = ({ chunked = !!work?.animated } = {}) => {
+                const saveRoster = () => {
+                    try {
+                        State.list = entries.filter(e => e.id || e.name).map(e => `${e.id}${e.name ? ` ${e.name}` : ''}${e.noEnglish ? ' #非英语' : ''}`);
+                        State.parseRoster();
+                        State.save({ dirtyData: false, dirtyList: true, invalidateDerived: false });
+                        Modal.close(true);
+                        toast.show('学生名单已保存');
+                    } catch (err) {
+                        bottomSheet.alert(err.message);
+                    }
+                };
+                const renderList = ({ chunked = !!work?.animated, focusId = null } = {}) => {
                     const token = ++renderToken;
                     const stats = filterAndSortStats(getStudentStats());
                     renderSummary(stats);
@@ -879,7 +747,7 @@
                     if (!stats.length) {
                         const empty = document.createElement('div');
                         empty.className = 'overview-empty';
-                        empty.textContent = '暂无符合条件的学生数据';
+                        empty.textContent = currentSearch.trim() ? '暂无符合条件的学生' : '暂无学生，请点击上方"新增学生"添加。';
                         ui.listEl.appendChild(empty);
                         mounted.forEach(id => cardPool.get(id)?.remove());
                         mounted = next;
@@ -893,28 +761,33 @@
                         const end = Math.min(index + batchSize, stats.length);
                         for (; index < end; index++) {
                             const s = stats[index];
-                            let card = cardPool.get(s.id);
+                            let card = cardPool.get(s._rowId);
                             if (!card) {
                                 card = document.createElement('article');
                                 card.className = 'overview-card';
                                 card.innerHTML = `<div class="overview-card-head">
                                     <div class="overview-card-meta">
-                                        <div class="overview-student-name"></div>
-                                        <div class="overview-student-sub"></div>
+                                        <input class="input-ui overview-edit-id" data-r="id" placeholder="学号">
+                                        <input class="input-ui overview-edit-name" data-r="name" placeholder="姓名">
                                     </div>
-                                    <div class="overview-completion-badge"></div>
+                                    <div class="overview-card-actions">
+                                        <label class="overview-check"><input type="checkbox" data-r="ex">非英语</label>
+                                        <button class="btn btn-d overview-del" data-act="del">&times;</button>
+                                    </div>
                                 </div>
                                 <div class="overview-metrics">
                                     <div class="overview-metric"><span>作业总数</span><strong class="overview-total"></strong></div>
                                     <div class="overview-metric"><span>已完成</span><strong class="overview-completed"></strong></div>
                                     <div class="overview-metric"><span>有成绩作业</span><strong class="overview-scored"></strong></div>
                                     <div class="overview-metric"><span>平均分</span><strong class="overview-avg"></strong></div>
-                                </div>`;
-                                cardPool.set(s.id, card);
+                                </div>
+                                <div class="overview-completion-badge"></div>`;
+                                cardPool.set(s._rowId, card);
                             }
-                            card.dataset.id = s.id;
-                            card.querySelector('.overview-student-name').textContent = s.name || s.id;
-                            card.querySelector('.overview-student-sub').textContent = s.name ? `学号 ${s.id}${s.noEnglish ? ' · 非英语' : ''}` : `${s.noEnglish ? '非英语' : ''}`;
+                            card.dataset.rowId = s._rowId;
+                            card.querySelector('[data-r="id"]').value = s.id;
+                            card.querySelector('[data-r="name"]').value = s.name;
+                            card.querySelector('[data-r="ex"]').checked = !!s.noEnglish;
                             const badge = card.querySelector('.overview-completion-badge');
                             badge.textContent = `${s.completionRate}%`;
                             badge.className = `overview-completion-badge ${s.completionRate >= 90 ? 'high' : s.completionRate >= 60 ? 'medium' : 'low'}`;
@@ -923,7 +796,7 @@
                             card.querySelector('.overview-scored').textContent = s.scoredAsgs;
                             card.querySelector('.overview-avg').textContent = s.avgScore ?? '--';
                             frag.appendChild(card);
-                            next.add(s.id);
+                            next.add(s._rowId);
                         }
                         if (!frag.childNodes.length) return;
                         ui.listEl.appendChild(frag);
@@ -933,6 +806,10 @@
                         }
                         mounted.forEach(id => { if (!next.has(id)) cardPool.get(id)?.remove(); });
                         mounted = next;
+                        if (focusId) {
+                            const card = Array.from(ui.listEl.querySelectorAll('.overview-card')).find(c => c.dataset.rowId === String(focusId));
+                            card?.querySelector('[data-r="id"]')?.focus();
+                        }
                     };
                     paintBatch();
                 };
@@ -951,7 +828,59 @@
                         currentSort = sortType;
                         renderList({ chunked: false });
                     });
+                    chrome.editToolbar.addEventListener('click', (e) => {
+                        const act = e.target.closest('[data-act]')?.dataset.act;
+                        if (!act) return;
+                        if (act === 'add') {
+                            entries.push({ id: '', name: '', noEnglish: false, _rowId: nextRowId++ });
+                            renderList({ focusId: nextRowId - 1 });
+                        } else if (act === 'autonum') {
+                            entries.forEach((e, i) => e.id = String(i + 1).padStart(2, '0'));
+                            renderList();
+                        } else if (act === 'sort-seat') {
+                            entries.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+                            renderList();
+                        } else if (act === 'clean') {
+                            for (let i = entries.length - 1; i >= 0; i--) if (!entries[i].id && !entries[i].name) entries.splice(i, 1);
+                            renderList();
+                        } else if (act === 'cancel') {
+                            Modal.close(false);
+                        } else if (act === 'save') {
+                            saveRoster();
+                        }
+                    });
                 };
+                ui.listEl.addEventListener('input', (e) => {
+                    const card = e.target.closest('.overview-card');
+                    if (!card) return;
+                    const rowId = Number(card.dataset.rowId);
+                    const entry = entries.find(e => e._rowId === rowId);
+                    if (!entry) return;
+                    if (e.target.dataset.r === 'id') entry.id = e.target.value;
+                    else if (e.target.dataset.r === 'name') entry.name = e.target.value;
+                    renderSummary(filterAndSortStats(getStudentStats()));
+                });
+                ui.listEl.addEventListener('change', (e) => {
+                    if (e.target.dataset.r !== 'ex') return;
+                    const card = e.target.closest('.overview-card');
+                    if (!card) return;
+                    const rowId = Number(card.dataset.rowId);
+                    const entry = entries.find(e => e._rowId === rowId);
+                    if (entry) entry.noEnglish = e.target.checked;
+                    renderSummary(filterAndSortStats(getStudentStats()));
+                });
+                ui.listEl.addEventListener('click', (e) => {
+                    const delBtn = e.target.closest('[data-act="del"]');
+                    if (!delBtn) return;
+                    const card = delBtn.closest('.overview-card');
+                    if (!card) return;
+                    const rowId = Number(card.dataset.rowId);
+                    const idx = entries.findIndex(e => e._rowId === rowId);
+                    if (idx !== -1) {
+                        entries.splice(idx, 1);
+                        renderList();
+                    }
+                });
                 Modal.show({ title: '', content: ui.root, type: 'full', loadingMask: false });
                 work = this.deferFullscreenWork(ui.root, {
                     aboveFold: () => { mountChrome(); },

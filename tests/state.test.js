@@ -315,37 +315,22 @@ describe('State', () => {
         expect(sparkSpy).not.toHaveBeenCalled();
     });
 
-    it('should update roster summary without rebuilding rows on input', () => {
-        State.list = Array.from({ length: 50 }, (_, i) => `${String(i + 1).padStart(2, '0')} 学生${i + 1}`);
-        Actions.roster();
 
-        const listEl = document.querySelector('.roster-list');
-        const countEl = document.querySelector('[data-role="count"]');
-        const firstRow = listEl.querySelector('.roster-row');
-        const [idInput, nameInput] = firstRow.querySelectorAll('[data-r]');
-        const appendSpy = vi.spyOn(listEl, 'appendChild');
 
-        idInput.value = '';
-        idInput.dispatchEvent(new Event('input', { bubbles: true }));
-        nameInput.value = '';
-        nameInput.dispatchEvent(new Event('input', { bubbles: true }));
-
-        expect(appendSpy).not.toHaveBeenCalled();
-        expect(countEl.textContent).toBe('共 49 人');
-    });
-
-    it('should render roster actions in topbar without modal footer buttons', () => {
+    it('should render student overview edit toolbar with correct actions', () => {
         State.list = ['01 张三'];
-        Actions.roster();
+        Actions.studentOverview();
 
-        const topbar = document.querySelector('.roster-topbar');
-        const toolbarActs = [...document.querySelectorAll('[data-role="actions"] [data-act]')].map(btn => btn.dataset.act);
-        const submitActs = [...document.querySelectorAll('[data-role="submit"] [data-act]')].map(btn => btn.dataset.act);
+        const editToolbar = document.querySelector('.overview-edit-toolbar');
+        const toolbarActs = [...document.querySelectorAll('.overview-edit-toolbar [data-act]')].map(btn => btn.dataset.act);
 
-        expect(topbar).toBeTruthy();
-        expect(document.querySelector('.roster-hint-card')).toBeNull();
-        expect(toolbarActs).toEqual(['add', 'autonum', 'sort-seat', 'clean']);
-        expect(submitActs).toEqual(['cancel', 'save']);
+        expect(editToolbar).toBeTruthy();
+        expect(toolbarActs).toContain('add');
+        expect(toolbarActs).toContain('autonum');
+        expect(toolbarActs).toContain('sort-seat');
+        expect(toolbarActs).toContain('clean');
+        expect(toolbarActs).toContain('cancel');
+        expect(toolbarActs).toContain('save');
         expect(document.querySelector('.modal-footer').style.display).toBe('none');
     });
 
@@ -462,13 +447,13 @@ describe('State', () => {
         expect(document.getElementById('menu').classList.contains('closing')).toBe(false);
     });
 
-    it('should render roster rows immediately on the shared full screen transition branch', () => {
+    it('should render student overview cards immediately on the shared full screen transition branch', () => {
         State.list = ['01 张三', '02 李四'];
 
-        Actions.roster();
+        Actions.studentOverview();
 
-        expect(document.querySelector('.roster-topbar')).toBeTruthy();
-        expect(document.querySelectorAll('.roster-row')).toHaveLength(2);
+        expect(document.querySelector('.overview-edit-toolbar')).toBeTruthy();
+        expect(document.querySelectorAll('.overview-card')).toHaveLength(2);
     });
 
     it('should open score action on card click when scoring mode is enabled', () => {

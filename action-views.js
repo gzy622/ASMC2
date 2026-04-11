@@ -115,59 +115,6 @@ const ActionViews = {
         };
     },
 
-    createRosterShell() {
-        const { root, body } = this.createShell('编辑学生名单');
-        body.style.padding = '12px';
-        const shell = document.createElement('div');
-        shell.className = 'roster-shell';
-        const topHost = document.createElement('div');
-        topHost.className = 'modal-stage-host';
-        topHost.appendChild(this.createSkeletonCard(['30%', '68%', '46%']));
-        const content = document.createElement('div');
-        content.className = 'roster-content';
-        const summaryHost = document.createElement('div');
-        summaryHost.className = 'roster-summary modal-stage-host';
-        summaryHost.append(this.createSkeletonPill('92px'), this.createSkeletonPill('112px'));
-        const listEl = document.createElement('div');
-        listEl.className = 'roster-list';
-        Array.from({ length: 8 }, () => this.createSkeletonCard(['72%', '64%', '48%'], 'modal-skeleton-card-compact')).forEach(card => listEl.appendChild(card));
-        content.append(summaryHost, listEl);
-        shell.append(topHost, content);
-        body.appendChild(shell);
-        return {
-            root,
-            topHost,
-            summaryHost,
-            listEl
-        };
-    },
-
-    createRosterChrome() {
-        const topbar = document.createElement('div');
-        topbar.className = 'roster-topbar modal-stage-ready';
-        topbar.innerHTML = `<div class="roster-actions" data-role="actions">
-            <button class="btn btn-p" type="button" data-act="add">新增</button>
-            <button class="btn btn-c" type="button" data-act="autonum">编座号</button>
-            <button class="btn btn-c" type="button" data-act="sort-seat">排序</button>
-            <button class="btn btn-c" type="button" data-act="clean">清空行</button>
-        </div>
-        <div class="roster-actions roster-actions-end" data-role="submit">
-            <button class="btn btn-c" type="button" data-act="cancel">取消</button>
-            <button class="btn btn-p" type="button" data-act="save">保存</button>
-        </div>`;
-        const summary = document.createElement('div');
-        summary.className = 'modal-stage-ready';
-        summary.innerHTML = `<span class="roster-badge" data-role="count"></span><span class="roster-badge" data-role="excluded"></span>`;
-        return {
-            topbar,
-            summary,
-            countEl: summary.querySelector('[data-role="count"]'),
-            excludedEl: summary.querySelector('[data-role="excluded"]'),
-            toolbar: topbar.querySelector('[data-role="actions"]'),
-            submitBar: topbar.querySelector('[data-role="submit"]')
-        };
-    },
-
     createImportShell() {
         const { root, body } = this.createShell('导入备份');
         body.style.padding = '16px';
@@ -292,11 +239,7 @@ const ActionViews = {
     createQuizTrendChrome() {
         const hero = document.createElement('div');
         hero.className = 'trend-hero modal-stage-ready';
-        hero.innerHTML = `<div>
-            <div class="trend-hero-title">按区间查看全班小测成绩</div>
-            <div class="trend-hero-note">选择起止任务后，按学生展示均分、最新分、区间变化与得分轨迹。</div>
-        </div>
-        <div class="trend-hero-summary" data-role="summary"></div>`;
+        hero.innerHTML = `<div class="trend-hero-summary" data-role="summary"></div>`;
         const toolbar = document.createElement('div');
         toolbar.className = 'trend-toolbar modal-stage-ready';
         toolbar.innerHTML = `<label class="trend-field">
@@ -354,7 +297,7 @@ const ActionViews = {
     },
 
     createStudentOverviewShell() {
-        const { root, body } = this.createShell('学生作业概览');
+        const { root, body } = this.createShell('学生名单与作业概览');
         body.style.padding = '16px';
         const shell = document.createElement('section');
         shell.className = 'overview-shell';
@@ -364,23 +307,22 @@ const ActionViews = {
         const toolbarHost = document.createElement('div');
         toolbarHost.className = 'modal-stage-host';
         toolbarHost.appendChild(this.createSkeletonCard(['22%', '22%', '22%'], 'modal-skeleton-card-lg'));
-        const filterHost = document.createElement('div');
-        filterHost.className = 'overview-filter-host modal-stage-host';
-        filterHost.appendChild(this.createSkeletonPill('96px'));
-        filterHost.appendChild(this.createSkeletonPill('112px'));
+        const editToolbarHost = document.createElement('div');
+        editToolbarHost.className = 'modal-stage-host';
+        editToolbarHost.appendChild(this.createSkeletonCard(['30%', '20%', '20%', '18%'], 'modal-skeleton-card-lg'));
         const boardEl = document.createElement('div');
         boardEl.className = 'overview-board';
         const listEl = document.createElement('div');
         listEl.className = 'overview-list';
         Array.from({ length: 6 }, () => this.createSkeletonCard(['28%', '52%', '68%', '48%'], 'modal-skeleton-card-lg')).forEach(card => listEl.appendChild(card));
         boardEl.appendChild(listEl);
-        shell.append(heroHost, toolbarHost, filterHost, boardEl);
+        shell.append(heroHost, toolbarHost, editToolbarHost, boardEl);
         body.appendChild(shell);
         return {
             root,
             heroHost,
             toolbarHost,
-            filterHost,
+            editToolbarHost,
             boardEl,
             listEl
         };
@@ -389,11 +331,7 @@ const ActionViews = {
     createStudentOverviewChrome() {
         const hero = document.createElement('div');
         hero.className = 'overview-hero modal-stage-ready';
-        hero.innerHTML = `<div>
-            <div class="overview-hero-title">学生作业提交与成绩概览</div>
-            <div class="overview-hero-note">查看每位学生的作业提交情况和有成绩的作业平均分，支持按科目筛选。</div>
-        </div>
-        <div class="overview-hero-summary" data-role="summary"></div>`;
+        hero.innerHTML = `<div class="overview-hero-summary" data-role="summary"></div>`;
         const toolbar = document.createElement('div');
         toolbar.className = 'overview-toolbar modal-stage-ready';
         toolbar.innerHTML = `<label class="overview-field">
@@ -414,9 +352,22 @@ const ActionViews = {
                 <button class="btn btn-c" type="button" data-sort="completion">按完成率</button>
                 <button class="btn btn-c" type="button" data-sort="score">按平均分</button>
             </div>`;
+        const editToolbar = document.createElement('div');
+        editToolbar.className = 'overview-edit-toolbar modal-stage-ready';
+        editToolbar.innerHTML = `<div class="overview-edit-actions">
+                <button class="btn btn-p" type="button" data-act="add">新增学生</button>
+                <button class="btn btn-c" type="button" data-act="autonum">编座号</button>
+                <button class="btn btn-c" type="button" data-act="sort-seat">按座号排序</button>
+                <button class="btn btn-c" type="button" data-act="clean">清空空行</button>
+            </div>
+            <div class="overview-edit-actions">
+                <button class="btn btn-c" type="button" data-act="cancel">取消</button>
+                <button class="btn btn-p" type="button" data-act="save">保存</button>
+            </div>`;
         return {
             hero,
             toolbar,
+            editToolbar,
             summaryEl: hero.querySelector('[data-role="summary"]'),
             subjectEl: toolbar.querySelector('[data-role="subject"]'),
             searchEl: toolbar.querySelector('[data-role="search"]'),

@@ -1,0 +1,67 @@
+:root {
+    --primary: #0d6efd;
+    --success: #389c6d;
+    --danger: #dc3545;
+    --bg: #f0f2f5;
+    --card: #fff;
+    --muted: #6c757d;
+    --border: #dee2e6;
+    --radius: 12px;
+    --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    --done-card-start: #68c490;
+    --done-card-end: #4dae77;
+    --done-card-border: #459f6c;
+    --done-card-shadow: rgba(77, 174, 119, 0.22);
+    --done-card-press-shadow: rgba(77, 174, 119, 0.32);
+    --motion-fast: 160ms;
+    --motion-base: 220ms;
+    --motion-slow: 260ms;
+    --motion-ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+    --motion-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+    --motion-shift-sm: 10px;
+    --motion-shift-md: 14px;
+    --motion-sheet-shift: 24px;
+    --motion-overlay-alpha: 0.35;
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
+    background: var(--bg);
+    margin: 0;
+    padding: 0 10px 10px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+    font-family: inherit;
+}
+
+body.modal-open {
+    position: fixed;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: var(--locked-body-height, 100vh);
+    overflow: hidden;
+}
+
+body.no-animations * {
+    animation: none !important;
+    transition: none !important;
+}
+
+body.no-animations .modal-card {
+    opacity: 1 !important;
+    transform: none !important;
+}

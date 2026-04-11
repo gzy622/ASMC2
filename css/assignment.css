@@ -1,0 +1,293 @@
+/* Assignment - 作业管理模块 */
+.asg-row-view {
+    grid-template-columns: minmax(0,1fr) 74px 60px;
+}
+
+.asg-row-btn {
+    width: 100%;
+    border: none;
+    background: #fff;
+    appearance: none;
+    text-align: left;
+}
+
+.asg-row-btn:focus-visible {
+    outline: 2px solid #d0e2ff;
+    outline-offset: -2px;
+}
+
+.asg-rate {
+    text-align: right;
+    font-weight: 700;
+    font-size: .9rem;
+}
+
+.asg-edit-row {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #f8f9fa;
+    align-items: center;
+}
+
+.asg-edit-row:last-child {
+    border-bottom: none;
+}
+
+.asg-edit-name {
+    margin: 0;
+}
+
+.asg-edit-tools {
+    display: flex;
+    gap: 6px;
+}
+
+.asg-manage-hero {
+    background: linear-gradient(135deg,#fdfefe,#eef5ff 55%,#fff7eb);
+    border: 1px solid rgba(13,110,253,.12);
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: 0 10px 24px rgba(13,110,253,.08);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.asg-manage-hero-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.asg-manage-hero-title {
+    font-size: .96rem;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: .01em;
+    color: #17324d;
+}
+
+.asg-manage-hero-note {
+    font-size: .74rem;
+    line-height: 1.45;
+    color: #54708c;
+}
+
+.asg-manage-form {
+    display: grid;
+    grid-template-columns: minmax(0,2fr) minmax(72px,.6fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.asg-manage-form .btn {
+    padding: 8px 12px;
+    font-size: .84rem;
+    white-space: nowrap;
+}
+
+.asg-manage-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.asg-card {
+    background: linear-gradient(180deg,#fff,#fbfcff);
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 18px;
+    padding: 14px;
+    box-shadow: 0 6px 18px rgba(15,23,42,.05);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+    cursor: pointer;
+}
+
+.asg-card.current {
+    border-color: rgba(13,110,253,.3);
+    box-shadow: 0 10px 26px rgba(13,110,253,.12);
+}
+
+.asg-card-delete {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    color: #6c757d;
+    box-shadow: 0 2px 4px rgba(0,0,0,.05);
+    cursor: pointer;
+    transition: transform .15s ease, background-color .15s ease, box-shadow .15s ease;
+}
+
+.asg-card-delete:hover {
+    background: #e9ecef;
+    color: #495057;
+    box-shadow: 0 4px 8px rgba(0,0,0,.1);
+}
+
+.asg-card-delete:active {
+    transform: scale(.94);
+}
+
+.asg-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding-right: 32px;
+}
+
+.asg-card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.asg-card-title {
+    font-size: .94rem;
+    font-weight: 700;
+    color: #17212b;
+    line-height: 1.28;
+    letter-spacing: .01em;
+}
+
+.asg-card-sub {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    font-size: .72rem;
+    line-height: 1.35;
+    color: #758292;
+}
+
+.asg-current-badge,
+.asg-subject-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: .7rem;
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.asg-current-badge {
+    background: #e7f1ff;
+    color: var(--primary);
+}
+
+.asg-subject-badge {
+    background: #edf6ef;
+    color: #2d7a4b;
+}
+
+.asg-subject-badge.non-english {
+    background: #fff1db;
+    color: #b86800;
+}
+
+.asg-card-stats {
+    text-align: right;
+    font-size: .77rem;
+    color: #607080;
+    min-width: 66px;
+    line-height: 1.25;
+}
+
+.asg-card-rate {
+    display: block;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #16212c;
+    line-height: 1.1;
+}
+
+.asg-card-fields {
+    display: grid;
+    grid-template-columns: minmax(0,1.7fr) minmax(120px,.9fr);
+    gap: 8px;
+}
+
+.asg-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.asg-field label {
+    font-size: .7rem;
+    color: #7a8795;
+    font-weight: 600;
+    letter-spacing: .02em;
+    line-height: 1.2;
+}
+
+.asg-subject-presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.asg-pill {
+    padding: 6px 11px;
+    border-radius: 999px;
+    border: 1px solid #d8e1ec;
+    background: #fff;
+    color: #5b6775;
+    cursor: pointer;
+    font-size: .8rem;
+    font-weight: 600;
+    transition: .15s;
+    line-height: 1.1;
+}
+
+.asg-pill.active {
+    background: #17324d;
+    color: #fff;
+    border-color: #17324d;
+    box-shadow: 0 6px 16px rgba(23,50,77,.18);
+}
+
+.asg-card-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.asg-card-confirm {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: #fff3f2;
+    border: 1px solid rgba(220,53,69,.2);
+    color: #a32634;
+    font-size: .8rem;
+    font-weight: 600;
+}
+
+.asg-hint {
+    font-size: .74rem;
+    line-height: 1.45;
+    color: #7a8795;
+}

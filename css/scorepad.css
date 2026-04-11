@@ -1,0 +1,158 @@
+/* Scorepad - 记分板组件 */
+.scorepad {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.12);
+    z-index: 1101;
+    padding: 0 16px max(20px, env(safe-area-inset-bottom));
+    transform: translateY(calc(100% + var(--motion-sheet-shift)));
+    transition: transform var(--motion-slow) var(--motion-ease-enter);
+    max-height: 85vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    pointer-events: none;
+}
+
+.scorepad.dragging {
+    transition: none;
+}
+
+.scorepad.is-open {
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.scorepad-handle {
+    width: 40px;
+    height: 5px;
+    background: #d0d5dd;
+    border-radius: 999px;
+    margin: 10px auto;
+    cursor: grab;
+    touch-action: none;
+}
+
+.scorepad-handle:active {
+    cursor: grabbing;
+}
+
+.scorepad-display-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.scorepad-display {
+    flex: 1;
+    min-width: 0;
+    padding: 14px 16px;
+    font-size: 1.8rem;
+    font-weight: 800;
+    text-align: center;
+    border: 2px solid #f0f2f5;
+    border-radius: 12px;
+    background: #fbfdff;
+    color: #16212c;
+    font-variant-numeric: tabular-nums;
+    outline: none;
+}
+
+.scorepad-display:focus {
+    border-color: var(--primary);
+    background: #fff;
+}
+
+.scorepad-mode-toggle {
+    flex: 0 0 auto;
+    min-width: 46px;
+    height: 40px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 10px;
+    background: #eef3ff;
+    color: #2850d9;
+    font-size: 0.82rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.scorepad-mode-toggle.active {
+    background: var(--primary);
+    color: #fff;
+}
+
+.scorepad-mode-toggle:active {
+    transform: scale(0.96);
+}
+
+.scorepad-keypad {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.scorepad-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.scorepad-key {
+    height: 48px;
+    border: none;
+    border-radius: 10px;
+    background: #f8f9fa;
+    color: #16212c;
+    font-size: 1.2rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.scorepad-key:active {
+    background: #e9ecef;
+    transform: scale(0.96);
+}
+
+.scorepad-key-fast {
+    font-size: 1rem;
+}
+
+.scorepad-key.action {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.scorepad-key.action:active {
+    background: #dee2e6;
+}
+
+.scorepad-toolbar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.scorepad-toolbar .btn {
+    height: 44px;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+@keyframes scoreSavedPulse {
+    0% { transform: scale(1); }
+    18% { transform: scale(1.04); }
+    38% { transform: scale(1); }
+    100% { transform: scale(1); }
+}

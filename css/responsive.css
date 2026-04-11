@@ -1,0 +1,162 @@
+/* Responsive - 响应式媒体查询 */
+
+/* Tablet and small desktop */
+@media (max-width: 860px) {
+    .trend-toolbar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .trend-hero {
+        flex-direction: column;
+    }
+
+    .trend-hero-summary {
+        white-space: normal;
+    }
+}
+
+/* Mobile landscape and small tablets */
+@media (max-width: 680px) {
+    body {
+        padding: 0 8px 8px;
+    }
+
+    header {
+        padding: 6px 12px;
+        gap: 8px;
+    }
+
+    .toolbar {
+        gap: 0;
+    }
+
+    .btn-icon {
+        padding: 6px 5px;
+    }
+
+    main {
+        gap: 6px;
+        padding: 2px;
+    }
+
+    /* Roster responsive */
+    .roster-topbar {
+        padding: 8px 10px;
+    }
+
+    .roster-content {
+        padding-right: 0;
+    }
+
+    .roster-actions,
+    .roster-actions-end {
+        width: 100%;
+    }
+
+    .roster-actions-end {
+        margin-left: 0;
+    }
+
+    .roster-topbar .btn {
+        flex: 1;
+    }
+
+    .roster-list {
+        grid-template-columns: repeat(auto-fill, minmax(102px, 1fr));
+        gap: 7px;
+    }
+
+    .roster-row {
+        padding: 8px;
+        gap: 5px;
+    }
+
+    .roster-del {
+        opacity: 1;
+        top: 2px;
+        right: 2px;
+        background: rgba(220, 53, 69, 0.1);
+        color: var(--danger);
+        box-shadow: none;
+        border: 1px solid rgba(220, 53, 69, 0.2);
+    }
+}
+
+/* Mobile portrait */
+@media (max-width: 560px) {
+    .trend-toolbar,
+    .trend-metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .trend-quick {
+        justify-content: stretch;
+    }
+
+    .trend-quick .btn {
+        flex: 1;
+    }
+
+    .trend-shell {
+        gap: 12px;
+    }
+
+    .trend-hero {
+        padding: 16px;
+        border-radius: 18px;
+    }
+
+    .trend-board {
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 6px;
+        margin: 0 -4px;
+        padding-inline: 4px;
+    }
+
+    .trend-list {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 14px;
+        width: max-content;
+        min-width: 100%;
+    }
+
+    .trend-card {
+        flex: 0 0 min(calc(100vw - 44px), 320px);
+        min-width: 272px;
+        scroll-snap-align: start;
+    }
+
+    .trend-board {
+        scroll-snap-type: x proximity;
+    }
+}
+
+/* Small mobile */
+@media (max-width: 400px) {
+    .asg-manage-form .btn {
+        padding: 8px 10px;
+        font-size: .8rem;
+    }
+}
+
+/* Score hero and input row responsive */
+@media (max-width: 759px) {
+    .score-hero,
+    .score-input-row,
+    .asg-card-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .asg-manage-form {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .asg-manage-form .btn {
+        padding: 10px 14px;
+        font-size: .88rem;
+    }
+}

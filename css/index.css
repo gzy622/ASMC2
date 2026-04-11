@@ -1,0 +1,33 @@
+/* CSS Entry Point - 样式入口文件
+ * 按组件拆分后的 CSS 模块汇总
+ */
+
+/* 1. 基础样式：变量、reset、body */
+@import url('base.css');
+
+/* 2. 通用组件：header、student-card、dropdown、toolbar */
+@import url('components.css');
+
+/* 3. 弹窗系统：dialog、modal-card */
+@import url('modal.css');
+
+/* 4. 记分板组件 */
+@import url('scorepad.css');
+
+/* 5. 底部面板框架 */
+@import url('bottom-sheet.css');
+
+/* 6. 花名册模块 */
+@import url('roster.css');
+
+/* 7. 作业管理模块 */
+@import url('assignment.css');
+
+/* 8. 趋势分析模块 */
+@import url('trend.css');
+
+/* 9. 动画关键帧 */
+@import url('animations.css');
+
+/* 10. 响应式媒体查询（放在最后） */
+@import url('responsive.css');

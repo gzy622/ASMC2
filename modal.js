@@ -166,6 +166,14 @@ const Modal = {
         this._loadingTransitionTimer = 0;
     },
 
+    /**
+     * 创建渐进式渲染控制器，用于分阶段渲染复杂弹窗内容
+     * 支持按优先级分阶段渲染（shell/aboveFold/heavy），优化首屏体验
+     * @param {Element} root - 弹窗内容的根元素
+     * @param {Object} options - 配置选项
+     * @param {boolean} [options.animated=true] - 是否启用动画，影响各阶段的延迟时间
+     * @returns {Object} 控制器API对象，包含调度、取消、清理等方法
+     */
     createProgressiveController(root, { animated = this.animationsEnabled() } = {}) {
         const timers = new Set();
         const rafs = new Set();
@@ -379,6 +387,17 @@ const Modal = {
         s.setProperty('--modal-bottom-gap', `${bot}px`);
     },
 
+    /**
+     * 显示弹窗，支持全屏和页面两种模式
+     * @param {Object} options - 弹窗配置选项
+     * @param {string} [options.title=''] - 弹窗标题
+     * @param {string|Element} options.content - 弹窗内容，可以是HTML字符串或DOM元素
+     * @param {string} [options.type='normal'] - 弹窗类型：'normal'普通弹窗、'full'全屏弹窗、'page'页面式弹窗
+     * @param {Array<Object>} [options.btns=[]] - 底部按钮配置数组，每个按钮包含text、type、onClick/val属性
+     * @param {Element|null} [options.autoFocusEl=null] - 弹窗打开后自动聚焦的元素
+     * @param {boolean} [options.loadingMask=true] - 全屏模式下是否显示加载遮罩
+     * @returns {Promise<*>} 返回Promise，弹窗关闭时解析为关闭值（通过close(val)传入）
+     */
     show({ title, content, type = 'normal', btns = [], autoFocusEl = null, loadingMask = true }) {
         if (this.isOpen) this.forceClose(false);
         UI.setGridFrozen(true);

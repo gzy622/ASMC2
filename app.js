@@ -410,7 +410,9 @@
             },
 
             /**
-             * 解析名单数据
+             * 解析名单数据，将原始名单列表转换为结构化的学生对象数组
+             * 并构建索引映射，用于快速查找学生信息
+             * @returns {void}
              */
             parseRoster() {
                 this.roster = this.list.map(l => this.parseRosterLine(l)).filter(s => s.id);
@@ -422,6 +424,19 @@
                 this.markGridDirty({ full: true });
             },
 
+            /**
+             * 保存应用状态，包括任务数据、名单数据和派生缓存
+             * @param {Object} options - 保存选项
+             * @param {boolean} [options.render=true] - 是否触发视图重新渲染
+             * @param {boolean} [options.immediate=false] - 是否立即持久化到本地存储，否则加入队列延迟保存
+             * @param {boolean} [options.dirtyData=true] - 是否标记任务数据为脏数据
+             * @param {boolean} [options.dirtyList=false] - 是否标记名单数据为脏数据
+             * @param {boolean} [options.asgListChanged=false] - 任务列表是否发生变化（增删排序）
+             * @param {string} [options.normalizeMode='all'] - 规范化模式：'all'全部、'target'指定任务、'none'不处理
+             * @param {number|null} [options.targetAsgId=null] - normalizeMode为'target'时指定的任务ID
+             * @param {boolean} [options.invalidateDerived=true] - 是否使派生数据缓存失效
+             * @returns {void}
+             */
             save({ render = true, immediate = false, dirtyData = true, dirtyList = false, asgListChanged = false, normalizeMode = 'all', targetAsgId = null, invalidateDerived = true } = {}) {
                 if (normalizeMode === 'all') { this.sanitizeAsgIds(); this._ensureAsgIndex(); }
                 else if (normalizeMode === 'target' && targetAsgId != null) {

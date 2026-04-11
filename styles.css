@@ -586,10 +586,6 @@
             text-align: center;
         }
 
-        .divider {
-            display: none; /* Replaced by menu-section border */
-        }
-
         /* Modal System */
         dialog {
             border: none;
@@ -715,10 +711,6 @@
         @keyframes dropdown-exit{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:0;transform:translate3d(0,calc(var(--motion-shift-sm) * -1),0)}}
         @keyframes motion-fade-in{from{opacity:0}to{opacity:1}}
         @keyframes motion-fade-out{from{opacity:1}to{opacity:0}}
-        @keyframes motion-surface-in{from{opacity:0;transform:translate3d(0,var(--modal-surface-enter-y),0)}to{opacity:1;transform:translate3d(0,0,0)}}
-        @keyframes motion-surface-out{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:0;transform:translate3d(0,var(--modal-surface-exit-y),0)}}
-        @keyframes motion-sheet-in{from{transform:translate3d(0,var(--modal-surface-enter-y),0)}to{transform:translate3d(0,0,0)}}
-        @keyframes motion-sheet-out{from{transform:translate3d(0,0,0)}to{transform:translate3d(0,var(--modal-surface-exit-y),0)}}
         @keyframes zoom-in{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
         @keyframes zoom-out{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:0;transform:translate3d(0,10px,0)}}
 
@@ -763,8 +755,12 @@
         .score-toolbar,.score-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
         .score-nav .btn[disabled],.score-toolbar .btn[disabled]{opacity:.45;cursor:default}
 
-        @media (max-width: 680px){.score-hero,.score-input-row,.asg-card-fields{grid-template-columns:1fr}.score-index{text-align:left}}
-        @media (max-width: 680px){.asg-manage-form{grid-template-columns:1fr;gap:8px}.asg-manage-form .btn{padding:10px 14px;font-size:.88rem}}
+        @media (max-width: 680px){
+            .score-hero,.score-input-row,.asg-card-fields{grid-template-columns:1fr}
+            .score-index{text-align:left}
+            .asg-manage-form{grid-template-columns:1fr;gap:8px}
+            .asg-manage-form .btn{padding:10px 14px;font-size:.88rem}
+        }
         @media (max-width: 400px){.asg-manage-form .btn{padding:8px 10px;font-size:.8rem}}
 
         textarea.st-editor{width:100%;height:300px;padding:12px;border:1px solid var(--border);border-radius:8px;font-family:monospace;resize:vertical;outline:none;font-size:.9rem}

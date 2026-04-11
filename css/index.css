@@ -26,7 +26,10 @@
 /* 8. 趋势分析模块 */
 @import url('trend.css');
 
-/* 9. 动画关键帧 */
+/* 9. 学生概览模块 */
+@import url('overview.css');
+
+/* 10. 动画关键帧 */
 @import url('animations.css');
 
 /* 10. 响应式媒体查询（放在最后） */

@@ -789,6 +789,175 @@
                 State.curId = State.resolveCurId(State.data[0].id);
                 State.save({ immediate: true, asgListChanged: true, invalidateDerived: false });
             },
+            studentOverview() {
+                const ui = this.ctx.views.createStudentOverviewShell();
+                const { modal, toast, views } = this.ctx;
+                let chrome = null;
+                let work = null;
+                let renderToken = 0;
+                let currentSort = 'completion';
+                let currentSubject = 'all';
+                let currentSearch = '';
+                const cardPool = new Map();
+                let mounted = new Set();
+                const isViewActive = () => Modal.isOpen && Modal.body.contains(ui.root);
+                const mountChrome = () => {
+                    if (chrome) return chrome;
+                    chrome = views.createStudentOverviewChrome();
+                    ui.heroHost.replaceChildren(chrome.hero);
+                    ui.toolbarHost.replaceChildren(chrome.toolbar);
+                    ui.filterHost.replaceChildren();
+                    Object.assign(ui, chrome);
+                    bindHandlers();
+                    return chrome;
+                };
+                const getStudentStats = () => {
+                    const stats = [];
+                    for (const stu of State.roster) {
+                        let totalAsgs = 0;
+                        let completedAsgs = 0;
+                        let scoredAsgs = 0;
+                        let totalScore = 0;
+                        for (const asg of State.data) {
+                            if (!State.isStuIncluded(asg, stu)) continue;
+                            if (currentSubject !== 'all' && State.getAsgSubject(asg) !== currentSubject) continue;
+                            totalAsgs++;
+                            const record = asg.records?.[stu.id];
+                            if (record?.done) completedAsgs++;
+                            const score = State.parseNumericScore(record?.score);
+                            if (score != null) {
+                                scoredAsgs++;
+                                totalScore += score;
+                            }
+                        }
+                        const completionRate = totalAsgs > 0 ? Math.round((completedAsgs / totalAsgs) * 100) : 0;
+                        const avgScore = scoredAsgs > 0 ? Number((totalScore / scoredAsgs).toFixed(1)) : null;
+                        stats.push({
+                            id: stu.id,
+                            name: stu.name,
+                            noEnglish: stu.noEnglish,
+                            totalAsgs,
+                            completedAsgs,
+                            completionRate,
+                            scoredAsgs,
+                            avgScore,
+                            searchText: `${stu.id} ${stu.name}`
+                        });
+                    }
+                    return stats;
+                };
+                const filterAndSortStats = (stats) => {
+                    let filtered = stats;
+                    if (currentSearch.trim()) {
+                        const term = currentSearch.toLowerCase();
+                        filtered = stats.filter(s => s.searchText.toLowerCase().includes(term));
+                    }
+                    return filtered.sort((a, b) => {
+                        if (currentSort === 'completion') {
+                            if (b.completionRate !== a.completionRate) return b.completionRate - a.completionRate;
+                            return (b.avgScore ?? -1) - (a.avgScore ?? -1);
+                        } else {
+                            if ((b.avgScore ?? -1) !== (a.avgScore ?? -1)) return (b.avgScore ?? -1) - (a.avgScore ?? -1);
+                            return b.completionRate - a.completionRate;
+                        }
+                    });
+                };
+                const renderSummary = (stats) => {
+                    const totalStudents = stats.length;
+                    const avgCompletion = totalStudents > 0 ? Math.round(stats.reduce((sum, s) => sum + s.completionRate, 0) / totalStudents) : 0;
+                    const studentsWithScore = stats.filter(s => s.avgScore != null).length;
+                    const avgScore = studentsWithScore > 0 ? Number((stats.reduce((sum, s) => sum + (s.avgScore ?? 0), 0) / studentsWithScore).toFixed(1)) : '--';
+                    chrome.summaryEl.innerHTML = `<div>共 ${totalStudents} 人</div><div>平均完成率 ${avgCompletion}%</div><div>平均成绩 ${avgScore}</div>`;
+                };
+                const renderList = ({ chunked = !!work?.animated } = {}) => {
+                    const token = ++renderToken;
+                    const stats = filterAndSortStats(getStudentStats());
+                    renderSummary(stats);
+                    const next = new Set();
+                    const useChunked = !!(chunked && work?.animated);
+                    ui.listEl.replaceChildren();
+                    if (!stats.length) {
+                        const empty = document.createElement('div');
+                        empty.className = 'overview-empty';
+                        empty.textContent = '暂无符合条件的学生数据';
+                        ui.listEl.appendChild(empty);
+                        mounted.forEach(id => cardPool.get(id)?.remove());
+                        mounted = next;
+                        return;
+                    }
+                    let index = 0;
+                    const batchSize = useChunked ? 8 : stats.length;
+                    const paintBatch = () => {
+                        if (token !== renderToken || !isViewActive()) return;
+                        const frag = document.createDocumentFragment();
+                        const end = Math.min(index + batchSize, stats.length);
+                        for (; index < end; index++) {
+                            const s = stats[index];
+                            let card = cardPool.get(s.id);
+                            if (!card) {
+                                card = document.createElement('article');
+                                card.className = 'overview-card';
+                                card.innerHTML = `<div class="overview-card-head">
+                                    <div class="overview-card-meta">
+                                        <div class="overview-student-name"></div>
+                                        <div class="overview-student-sub"></div>
+                                    </div>
+                                    <div class="overview-completion-badge"></div>
+                                </div>
+                                <div class="overview-metrics">
+                                    <div class="overview-metric"><span>作业总数</span><strong class="overview-total"></strong></div>
+                                    <div class="overview-metric"><span>已完成</span><strong class="overview-completed"></strong></div>
+                                    <div class="overview-metric"><span>有成绩作业</span><strong class="overview-scored"></strong></div>
+                                    <div class="overview-metric"><span>平均分</span><strong class="overview-avg"></strong></div>
+                                </div>`;
+                                cardPool.set(s.id, card);
+                            }
+                            card.dataset.id = s.id;
+                            card.querySelector('.overview-student-name').textContent = s.name || s.id;
+                            card.querySelector('.overview-student-sub').textContent = s.name ? `学号 ${s.id}${s.noEnglish ? ' · 非英语' : ''}` : `${s.noEnglish ? '非英语' : ''}`;
+                            const badge = card.querySelector('.overview-completion-badge');
+                            badge.textContent = `${s.completionRate}%`;
+                            badge.className = `overview-completion-badge ${s.completionRate >= 90 ? 'high' : s.completionRate >= 60 ? 'medium' : 'low'}`;
+                            card.querySelector('.overview-total').textContent = s.totalAsgs;
+                            card.querySelector('.overview-completed').textContent = s.completedAsgs;
+                            card.querySelector('.overview-scored').textContent = s.scoredAsgs;
+                            card.querySelector('.overview-avg').textContent = s.avgScore ?? '--';
+                            frag.appendChild(card);
+                            next.add(s.id);
+                        }
+                        if (!frag.childNodes.length) return;
+                        ui.listEl.appendChild(frag);
+                        if (index < stats.length && useChunked) {
+                            work.frame(paintBatch);
+                            return;
+                        }
+                        mounted.forEach(id => { if (!next.has(id)) cardPool.get(id)?.remove(); });
+                        mounted = next;
+                    };
+                    paintBatch();
+                };
+                const bindHandlers = () => {
+                    chrome.subjectEl.addEventListener('change', (e) => {
+                        currentSubject = e.target.value;
+                        renderList({ chunked: false });
+                    });
+                    chrome.searchEl.addEventListener('input', (e) => {
+                        currentSearch = e.target.value;
+                        renderList({ chunked: false });
+                    });
+                    chrome.quickEl.addEventListener('click', (e) => {
+                        const sortType = e.target.closest('[data-sort]')?.dataset.sort;
+                        if (!sortType) return;
+                        currentSort = sortType;
+                        renderList({ chunked: false });
+                    });
+                };
+                Modal.show({ title: '', content: ui.root, type: 'full', loadingMask: false });
+                work = this.deferFullscreenWork(ui.root, {
+                    aboveFold: () => { mountChrome(); },
+                    heavy: () => renderList({ chunked: true })
+                });
+            },
             quizTrend() {
                 const ui = this.ctx.views.createQuizTrendShell();
                 const assignments = State.getQuizTrendAssignments();

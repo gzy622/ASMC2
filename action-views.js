@@ -351,6 +351,77 @@ const ActionViews = {
         });
         svg.innerHTML = `<polyline points="${points.map(point => `${point.x},${point.y}`).join(' ')}" class="trend-line"></polyline>${points.map(point => `<circle cx="${point.x}" cy="${point.y}" r="4" class="trend-dot"><title>${point.score}</title></circle>`).join('')}`;
         return svg;
+    },
+
+    createStudentOverviewShell() {
+        const { root, body } = this.createShell('学生作业概览');
+        body.style.padding = '16px';
+        const shell = document.createElement('section');
+        shell.className = 'overview-shell';
+        const heroHost = document.createElement('div');
+        heroHost.className = 'modal-stage-host';
+        heroHost.appendChild(this.createSkeletonCard(['38%', '72%', '42%'], 'modal-skeleton-card-lg'));
+        const toolbarHost = document.createElement('div');
+        toolbarHost.className = 'modal-stage-host';
+        toolbarHost.appendChild(this.createSkeletonCard(['22%', '22%', '22%'], 'modal-skeleton-card-lg'));
+        const filterHost = document.createElement('div');
+        filterHost.className = 'overview-filter-host modal-stage-host';
+        filterHost.appendChild(this.createSkeletonPill('96px'));
+        filterHost.appendChild(this.createSkeletonPill('112px'));
+        const boardEl = document.createElement('div');
+        boardEl.className = 'overview-board';
+        const listEl = document.createElement('div');
+        listEl.className = 'overview-list';
+        Array.from({ length: 6 }, () => this.createSkeletonCard(['28%', '52%', '68%', '48%'], 'modal-skeleton-card-lg')).forEach(card => listEl.appendChild(card));
+        boardEl.appendChild(listEl);
+        shell.append(heroHost, toolbarHost, filterHost, boardEl);
+        body.appendChild(shell);
+        return {
+            root,
+            heroHost,
+            toolbarHost,
+            filterHost,
+            boardEl,
+            listEl
+        };
+    },
+
+    createStudentOverviewChrome() {
+        const hero = document.createElement('div');
+        hero.className = 'overview-hero modal-stage-ready';
+        hero.innerHTML = `<div>
+            <div class="overview-hero-title">学生作业提交与成绩概览</div>
+            <div class="overview-hero-note">查看每位学生的作业提交情况和有成绩的作业平均分，支持按科目筛选。</div>
+        </div>
+        <div class="overview-hero-summary" data-role="summary"></div>`;
+        const toolbar = document.createElement('div');
+        toolbar.className = 'overview-toolbar modal-stage-ready';
+        toolbar.innerHTML = `<label class="overview-field">
+                <span>科目筛选</span>
+                <select class="input-ui" data-role="subject">
+                    <option value="all">全部科目</option>
+                    <option value="英语">英语</option>
+                    <option value="数学">数学</option>
+                    <option value="语文">语文</option>
+                    <option value="其他">其他</option>
+                </select>
+            </label>
+            <label class="overview-field overview-search">
+                <span>搜索学生</span>
+                <input class="input-ui" data-role="search" placeholder="输入学号或姓名">
+            </label>
+            <div class="overview-quick" data-role="quick">
+                <button class="btn btn-c" type="button" data-sort="completion">按完成率</button>
+                <button class="btn btn-c" type="button" data-sort="score">按平均分</button>
+            </div>`;
+        return {
+            hero,
+            toolbar,
+            summaryEl: hero.querySelector('[data-role="summary"]'),
+            subjectEl: toolbar.querySelector('[data-role="subject"]'),
+            searchEl: toolbar.querySelector('[data-role="search"]'),
+            quickEl: toolbar.querySelector('[data-role="quick"]')
+        };
     }
 };
 

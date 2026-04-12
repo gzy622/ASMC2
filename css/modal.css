@@ -523,3 +523,210 @@ dialog.full .modal-body {
 .st-scroll-area > * {
     flex-shrink: 0;
 }
+
+/* Import Backup - 导入备份模块 */
+.import-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    height: 100%;
+}
+
+.import-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #fff8e6 0%, #fff3d6 100%);
+    border: 1px solid rgba(234, 179, 8, 0.2);
+    color: #854d0e;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.import-warning svg {
+    flex-shrink: 0;
+    color: #eab308;
+    margin-top: 1px;
+}
+
+.import-dropzone {
+    flex: 1;
+    min-height: 200px;
+    border: 2px dashed rgba(15, 23, 42, 0.15);
+    border-radius: 18px;
+    background: linear-gradient(180deg, #f8fbff 0%, #f2f6fb 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.import-dropzone:hover {
+    border-color: rgba(47, 125, 246, 0.4);
+    background: linear-gradient(180deg, #f0f7ff 0%, #e8f2fc 100%);
+}
+
+.import-dropzone.dragover {
+    border-color: #2f7df6;
+    background: linear-gradient(180deg, #e8f2ff 0%, #ddeefc 100%);
+    transform: scale(0.995);
+}
+
+.import-dropzone-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 24px;
+    text-align: center;
+    color: #64748b;
+}
+
+.import-dropzone-content svg {
+    color: #94a3b8;
+    transition: color 0.2s ease;
+}
+
+.import-dropzone:hover .import-dropzone-content svg {
+    color: #2f7df6;
+}
+
+.import-dropzone-text {
+    font-size: 1rem;
+    color: #334155;
+}
+
+.import-dropzone-text strong {
+    color: #2f7df6;
+    font-weight: 700;
+}
+
+.import-dropzone-hint {
+    font-size: 0.82rem;
+    color: #94a3b8;
+}
+
+.import-fileinfo {
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+}
+
+.import-fileinfo-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f1f5f9;
+    margin-bottom: 12px;
+}
+
+.import-fileinfo-header svg {
+    color: #2f7df6;
+}
+
+.import-fileinfo-header span {
+    flex: 1;
+    font-weight: 600;
+    color: #16212c;
+    font-size: 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.import-fileinfo-remove {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: #f1f5f9;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.import-fileinfo-remove:hover {
+    background: #e2e8f0;
+    color: #dc2626;
+}
+
+.import-fileinfo-remove:active {
+    transform: scale(0.95);
+}
+
+.import-fileinfo-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.import-fileinfo-preview-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border-radius: 10px;
+}
+
+.import-fileinfo-preview-label {
+    font-size: 0.85rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.import-fileinfo-preview-value {
+    font-size: 0.9rem;
+    color: #16212c;
+    font-weight: 700;
+}
+
+.import-status {
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 0.9rem;
+    text-align: center;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.import-status.ok {
+    background: #ecfdf5;
+    color: #059669;
+}
+
+.import-status.err {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.import-status.loading {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.import-actions {
+    display: flex;
+    gap: 12px;
+    padding-top: 8px;
+}
+
+.import-actions .btn {
+    flex: 1;
+    height: 48px;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 12px;
+}

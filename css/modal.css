@@ -264,21 +264,21 @@ dialog.full.is-closing .modal-card {
     transform: scale(0.98);
 }
 
-.btn-primary {
+.btn-p {
     background: var(--primary);
     color: #fff;
 }
 
-.btn-primary:hover {
+.btn-p:hover {
     background: #0b5ed7;
 }
 
-.btn-secondary {
+.btn-c {
     background: #f1f5f9;
     color: #334155;
 }
 
-.btn-secondary:hover {
+.btn-c:hover {
     background: #e2e8f0;
 }
 

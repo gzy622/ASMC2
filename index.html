@@ -118,6 +118,9 @@
 
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- 方案1: 传统方式（保持兼容性） -->
+    <!-- 按顺序加载脚本，依赖全局对象 -->
     <script src="utils.js"></script>
     <script src="core.js"></script>
     <script src="back-handler.js"></script>
@@ -128,6 +131,18 @@
     <script src="action-views.js"></script>
     <script src="actions.js"></script>
     <script src="boot.js"></script>
+    
+    <!-- 方案2: 模块化方式（解决依赖问题） -->
+    <!-- 
+    1. 加载模块加载器
+    <script src="module-loader.js"></script>
+    
+    2. 加载模块化应用入口（使用 ModuleLoader.define 定义模块依赖）
+    <script src="app-modular.js"></script>
+    
+    或者使用 ES6 模块（需要浏览器支持）
+    <script type="module" src="app-modern.js"></script>
+    -->
 </body>
 
 </html>

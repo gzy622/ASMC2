@@ -122,58 +122,58 @@ npm run test:coverage
 
 ### 核心文件
 
-| 文件 | 说明 |
-|------|------|
-| `index.html` | 应用主页面，包含页面结构和模块引用 |
-| `app.js` | 状态管理 `State` 和 UI 渲染 `UI`，包含名单解析、任务管理、数据持久化 |
-| `actions.js` | 业务操作中心：作业管理、名单编辑、导入导出、小测趋势、学生概览 |
-| `core.js` | 基础工具：DOM 选择器、localStorage 封装、设备检测、颜色工具、ID 生成器、数据验证器 |
-| `utils.js` | 通用工具函数 |
+| 文件           | 说明                                                  |
+| ------------ | --------------------------------------------------- |
+| `index.html` | 应用主页面，包含页面结构和模块引用                                   |
+| `app.js`     | 状态管理 `State` 和 UI 渲染 `UI`，包含名单解析、任务管理、数据持久化         |
+| `actions.js` | 业务操作中心：作业管理、名单编辑、导入导出、小测趋势、学生概览                     |
+| `core.js`    | 基础工具：DOM 选择器、localStorage 封装、设备检测、颜色工具、ID 生成器、数据验证器 |
+| `utils.js`   | 通用工具函数                                              |
 
 ### UI 组件
 
-| 文件 | 说明 |
-|------|------|
-| `modal.js` | 弹窗组件，支持全屏/页面模式、渐进式渲染 |
-| `bottom-sheet.js` | 底部滑出面板，支持拖拽关闭 |
-| `scorepad.js` | 分数录入面板，支持数字键盘和整十快速模式 |
-| `action-views.js` | 视图生成工厂，提供弹窗/面板的骨架结构 |
+| 文件                | 说明                   |
+| ----------------- | -------------------- |
+| `modal.js`        | 弹窗组件，支持全屏/页面模式、渐进式渲染 |
+| `bottom-sheet.js` | 底部滑出面板，支持拖拽关闭        |
+| `scorepad.js`     | 分数录入面板，支持数字键盘和整十快速模式 |
+| `action-views.js` | 视图生成工厂，提供弹窗/面板的骨架结构  |
 
 ### 其他
 
-| 文件 | 说明 |
-|------|------|
-| `back-handler.js` | 浏览器返回键处理，实现"再按一次退出" |
-| `boot.js` | 应用启动脚本，初始化各模块 |
-| `app-modern.js` | 基于 ES6 模块的新版本应用入口 |
-| `modules-compat.js` | 模块系统兼容层，支持渐进迁移 |
+| 文件                  | 说明                  |
+| ------------------- | ------------------- |
+| `back-handler.js`   | 浏览器返回键处理，实现"再按一次退出" |
+| `boot.js`           | 应用启动脚本，初始化各模块       |
+| `app-modern.js`     | 基于 ES6 模块的新版本应用入口   |
+| `modules-compat.js` | 模块系统兼容层，支持渐进迁移      |
 
 ### CSS 模块
 
-| 文件 | 说明 |
-|------|------|
-| `css/index.css` | 样式入口，导入所有其他样式 |
-| `css/base.css` | CSS 变量、基础样式、重置样式 |
-| `css/components.css` | 按钮、徽章、下拉菜单等通用组件 |
-| `css/assignment.css` | 作业卡片、网格布局 |
-| `css/roster.css` | 名单编辑相关样式 |
-| `css/modal.css` | 弹窗、对话框样式 |
-| `css/bottom-sheet.css` | 底部面板样式 |
-| `css/scorepad.css` | 分数录入面板样式 |
-| `css/overview.css` | 学生概览页面样式 |
-| `css/trend.css` | 小测趋势分析样式 |
-| `css/animations.css` | 动画关键帧和过渡效果 |
-| `css/responsive.css` | 响应式断点和适配 |
+| 文件                     | 说明               |
+| ---------------------- | ---------------- |
+| `css/index.css`        | 样式入口，导入所有其他样式    |
+| `css/base.css`         | CSS 变量、基础样式、重置样式 |
+| `css/components.css`   | 按钮、徽章、下拉菜单等通用组件  |
+| `css/assignment.css`   | 作业卡片、网格布局        |
+| `css/roster.css`       | 名单编辑相关样式         |
+| `css/modal.css`        | 弹窗、对话框样式         |
+| `css/bottom-sheet.css` | 底部面板样式           |
+| `css/scorepad.css`     | 分数录入面板样式         |
+| `css/overview.css`     | 学生概览页面样式         |
+| `css/trend.css`        | 小测趋势分析样式         |
+| `css/animations.css`   | 动画关键帧和过渡效果       |
+| `css/responsive.css`   | 响应式断点和适配         |
 
 ### ES6 模块系统
 
 详见 [架构文档](docs/architecture.md) 和 [迁移指南](docs/migration-guide.md)。
 
-| 模块 | 说明 |
-|------|------|
-| `modules/core/` | 核心层：常量、事件系统 |
+| 模块              | 说明                |
+| --------------- | ----------------- |
+| `modules/core/` | 核心层：常量、事件系统       |
 | `modules/data/` | 数据层：模型、状态管理、存储适配器 |
-| `modules/ui/` | 表现层：渲染器、交互处理器、视图 |
+| `modules/ui/`   | 表现层：渲染器、交互处理器、视图  |
 
 ## 模块依赖
 
@@ -209,7 +209,7 @@ index.html
 
 ## 版本信息
 
-当前版本：`20260412-01`
+当前版本：`20260416-01`
 
 ## 相关文档
 
@@ -217,3 +217,4 @@ index.html
 - [API 参考](docs/api-reference.md) - ES6 模块 API 文档
 - [迁移指南](docs/migration-guide.md) - 从传统脚本迁移到模块系统
 - [改进计划](docs/improvement-plan/README.md) - 项目演进路线图
+

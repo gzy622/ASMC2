@@ -49,7 +49,8 @@ files.forEach(file => {
     try {
         (new Function(content))();
     } catch (e) {
-        // console.error(`Error loading ${file}:`, e);
+        console.error(`Error loading ${file}:`, e);
+        throw e;
     }
 });
 

@@ -238,8 +238,8 @@ const ActionViews = {
 
     createQuizTrendChrome() {
         const hero = document.createElement('div');
-        hero.className = 'trend-hero modal-stage-ready';
-        hero.innerHTML = `<div class="trend-hero-summary" data-role="summary"></div>`;
+        hero.className = 'trend-hero trend-hero-summary modal-stage-ready';
+        hero.dataset.role = 'summary';
         const toolbar = document.createElement('div');
         toolbar.className = 'trend-toolbar modal-stage-ready';
         toolbar.innerHTML = `<label class="trend-field">
@@ -261,7 +261,7 @@ const ActionViews = {
         return {
             hero,
             toolbar,
-            summaryEl: hero.querySelector('[data-role="summary"]'),
+            summaryEl: hero,
             startEl: toolbar.querySelector('[data-role="start"]'),
             endEl: toolbar.querySelector('[data-role="end"]'),
             searchEl: toolbar.querySelector('[data-role="search"]'),
@@ -330,8 +330,8 @@ const ActionViews = {
 
     createStudentOverviewChrome() {
         const hero = document.createElement('div');
-        hero.className = 'overview-hero modal-stage-ready';
-        hero.innerHTML = `<div class="overview-hero-summary" data-role="summary"></div>`;
+        hero.className = 'overview-hero overview-hero-summary modal-stage-ready';
+        hero.dataset.role = 'summary';
         const toolbar = document.createElement('div');
         toolbar.className = 'overview-toolbar modal-stage-ready';
         toolbar.innerHTML = `<label class="overview-field">
@@ -368,7 +368,7 @@ const ActionViews = {
             hero,
             toolbar,
             editToolbar,
-            summaryEl: hero.querySelector('[data-role="summary"]'),
+            summaryEl: hero,
             subjectEl: toolbar.querySelector('[data-role="subject"]'),
             searchEl: toolbar.querySelector('[data-role="search"]'),
             quickEl: toolbar.querySelector('[data-role="quick"]')

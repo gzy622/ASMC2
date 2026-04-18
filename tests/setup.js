@@ -24,7 +24,11 @@ global.alert = vi.fn();
 global.confirm = vi.fn(() => true);
 global.prompt = vi.fn();
 
-// 首先加载 utils.js 以定义全局常量和工具函数
+// 首先加载 constants.js 以定义全局常量
+const constantsContent = readFileSync(join(process.cwd(), 'constants.js'), 'utf8');
+(new Function(constantsContent))();
+
+// 然后加载 utils.js 以定义全局常量和工具函数
 const utilsContent = readFileSync(join(process.cwd(), 'utils.js'), 'utf8');
 (new Function(utilsContent))();
 

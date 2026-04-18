@@ -337,41 +337,6 @@ const LS = {
 // ============================================
 
 /**
- * 动画时长常量（单位：毫秒）
- */
-const ANIMATION_DURATION = {
-    FULL_ENTER: 220,
-    FULL_EXIT: 160,
-    PAGE_EXIT: 160,
-    BOTTOM_SHEET_CLOSE: 260,
-    LOADING_MASK_FADE: 90,
-    POINTER_GUARD_DEFAULT: 320,
-    POINTER_GUARD_FULL: 240,
-    POINTER_GUARD_PAGE: 200,
-    FOCUS_DELAY_DEFAULT: 60,
-    FOCUS_DELAY_INPUT: 180
-};
-
-/**
- * 定时器延迟常量（单位：毫秒）
- */
-const TIMER_DELAY = {
-    DRAFT_PERSIST: 1200,
-    CARD_META_SAVE: 250,
-    SCOREPAD_CLOSE: 120,
-    BACK_SIGNAL_DEBOUNCE: 80,
-    EXIT_WINDOW: 1500
-};
-
-/**
- * 手势与交互阈值
- */
-const INTERACTION_THRESHOLD = {
-    DRAG_CLOSE: 80,
-    DRAG_MAX_OFFSET: 200
-};
-
-/**
  * 设备检测工具
  */
 const Device = {
@@ -462,7 +427,6 @@ Object.assign(globalThis, {
     // 存储
     KEYS, LS,
     // 动画
-    ANIMATION_DURATION, TIMER_DELAY, INTERACTION_THRESHOLD,
     Device, IS_ANDROID_FIREFOX, nextFrame, cancelFrame,
     // 其他
     Toast, DEFAULT_ROSTER

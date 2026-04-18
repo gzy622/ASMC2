@@ -1,69 +1,70 @@
-        const State = {
-            list: [], roster: [], data: [], curId: null, mode: 'name', scoring: false, animations: true, debug: false,
-            prefs: { cardDoneColor: '#68c490' },
-            asgMap: new Map(),
-            rosterIndexMap: new Map(),
-            noEnglishIds: [],
-            view: { init() { }, render() { }, renderStudent() { }, renderProgress() { }, isReady() { return false; } },
-            _persistTimer: 0,
-            _draftTimer: 0,
-            _draftDirty: false,
-            _draftPersistMs: 1200,
-            _lastDraftSnapshot: null,
-            _cacheVersion: 0,
-            _metricsCache: new Map(),
-            _dirtyData: false,
-            _dirtyList: false,
-            _asgListVersion: 0,
-            _rosterVersion: 0,
-            _gridDirtyFull: true,
-            _gridDirtyStudentIds: new Set(),
+        const App = (function() {
+            const State = {
+                list: [], roster: [], data: [], curId: null, mode: 'name', scoring: false, animations: true, debug: false,
+                prefs: { cardDoneColor: APP_CONFIG.DEFAULT_CARD_COLOR },
+                asgMap: new Map(),
+                rosterIndexMap: new Map(),
+                noEnglishIds: [],
+                view: { init() { }, render() { }, renderStudent() { }, renderProgress() { }, isReady() { return false; } },
+                _persistTimer: 0,
+                _draftTimer: 0,
+                _draftDirty: false,
+                _draftPersistMs: TIMER_DELAY.DRAFT_PERSIST || 1200,
+                _lastDraftSnapshot: null,
+                _cacheVersion: 0,
+                _metricsCache: new Map(),
+                _dirtyData: false,
+                _dirtyList: false,
+                _asgListVersion: 0,
+                _rosterVersion: 0,
+                _gridDirtyFull: true,
+                _gridDirtyStudentIds: new Set(),
 
-            init() {
-                // 异步初始化，避免启动时卡顿
-                const initAsync = async () => {
-                    // 先加载基本数据
-                    this.list = LS.get(KEYS.LIST, DEFAULT_ROSTER);
-                    this.animations = LS.get(KEYS.ANIM, true);
-                    this.prefs = this.normalizePrefs(LS.get(KEYS.PREFS, this.prefs));
-                    
-                    // 延迟加载和处理数据，让页面先渲染
-                    setTimeout(() => {
-                        try {
-                            this.data = LS.get(KEYS.DATA, []).map(a => this.normalizeAsg(a)).filter(Boolean);
-                            const recovered = this.applyRecoveryDraft();
-                            
+                init() {
+                    const initAsync = async () => {
+                        this.list = LS.get(KEYS.LIST, DEFAULT_ROSTER);
+                        this.animations = LS.get(KEYS.ANIM, true);
+                        this.prefs = this.normalizePrefs(LS.get(KEYS.PREFS, this.prefs));
+
+                        setTimeout(() => {
                             try {
-                                this.parseRoster();
+                                this.data = LS.get(KEYS.DATA, []).map(a => this.normalizeAsg(a)).filter(Boolean);
+                                const recovered = this.applyRecoveryDraft();
+
+                                try {
+                                    this.parseRoster();
+                                } catch (err) {
+                                    window.alert(`名单数据异常：${err.message}\n请先修复本地名单后再使用。`);
+                                    throw err;
+                                }
+
+                                if (!this.data.length) {
+                                    this.addAsg('任务 1');
+                                }
+
+                                const repairedIds = this.sanitizeAsgIds();
+                                this._ensureAsgIndex();
+                                if (repairedIds) Toast.show('已自动修复异常任务 ID');
+
+                                this.curId = this.resolveCurId(this.curId);
+                                this.applyAnim();
+                                this.applyCardColor();
+                                window.addEventListener('beforeunload', () => this._flushPersist({ includeDraft: true }));
+                                this.view.init();
+                                this._lastDraftSnapshot = this.getRecoverySnapshot();
+                                if (recovered) Toast.show('已恢复上次未完成的临时登记数据');
                             } catch (err) {
-                                window.alert(`名单数据异常：${err.message}\n请先修复本地名单后再使用。`);
-                                throw err;
-                            }
-                            
-                            if (!this.data.length) {
+                                console.error('初始化失败:', err);
+                                Toast.show('初始化失败: ' + (err?.message || '未知错误'));
+                                this.data = [];
+                                this.list = DEFAULT_ROSTER;
                                 this.addAsg('任务 1');
                             }
-                            
-                            const repairedIds = this.sanitizeAsgIds();
-                            this._ensureAsgIndex();
-                            if (repairedIds) Toast.show('已自动修复异常任务 ID');
-                            
-                            this.curId = this.resolveCurId(this.curId);
-                            this.applyAnim();
-                            this.applyCardColor();
-                            window.addEventListener('beforeunload', () => this._flushPersist({ includeDraft: true }));
-                            this.view.init();
-                            this._lastDraftSnapshot = this.getRecoverySnapshot();
-                            if (recovered) Toast.show('已恢复上次未完成的临时登记数据');
-                        } catch (err) {
-                            console.error('初始化失败:', err);
-                            Toast.show('初始化失败: ' + (err?.message || '未知错误'));
-                        }
-                    }, 100);
-                };
-                
-                initAsync();
-            },
+                        }, APP_CONFIG.INIT_DELAY_MS || 100);
+                    };
+
+                    initAsync();
+                },
 
             /**
              * 规范化用户偏好设置
@@ -649,54 +650,12 @@
 
                 let scoredStudentCount = 0;
                 const students = this.roster.map(stu => {
-                    const timeline = [];
-                    const entries = [];
-                    let includedCount = 0;
-                    let totalScore = 0;
-                    let first = null;
-                    let latest = null;
-                    let best = null;
-                    let worst = null;
-
-                    assignments.forEach(asg => {
-                        if (!this.isStuIncluded(asg, stu)) {
-                            timeline.push({ asgId: asg.id, label: asg.name, score: null, rawScore: '', included: false });
-                            return;
-                        }
-                        includedCount++;
-                        const rawScore = asg.records?.[stu.id]?.score ?? '';
-                        const score = this.parseNumericScore(rawScore);
-                        const item = { asgId: asg.id, label: asg.name, score, rawScore, included: true };
-                        timeline.push(item);
-                        if (score == null) return;
-                        entries.push(item);
-                        totalScore += score;
-                        if (first == null) first = score;
-                        latest = score;
-                        best = best == null ? score : Math.max(best, score);
-                        worst = worst == null ? score : Math.min(worst, score);
-                    });
-
-                    const stats = {
-                        avg: entries.length ? Number((totalScore / entries.length).toFixed(1)) : null,
-                        latest,
-                        best,
-                        worst,
-                        delta: entries.length >= 2 ? Number((latest - first).toFixed(1)) : null,
-                        coverage: `${entries.length}/${includedCount}`,
-                        trend: this.classifyScoreTrend(entries)
-                    };
-                    const timelineKey = this.buildTrendTimelineKey(timeline);
-                    if (entries.length) scoredStudentCount++;
+                    const studentStats = this._calculateStudentStats(stu, assignments);
+                    if (studentStats.stats.entries.length) scoredStudentCount++;
                     return {
                         id: stu.id,
                         name: stu.name,
-                        entries,
-                        timeline,
-                        stats,
-                        searchText: `${stu.id} ${stu.name}`,
-                        timelineKey,
-                        renderKey: `${stu.id}|${stu.name}|${stats.coverage}|${stats.avg ?? ''}|${stats.latest ?? ''}|${stats.best ?? ''}|${stats.delta ?? ''}|${stats.trend}|${timelineKey}`
+                        ...studentStats
                     };
                 });
                 const report = {
@@ -704,10 +663,66 @@
                     students,
                     scoredStudentCount
                 };
-                // 限制缓存大小，避免内存泄漏
-                if (this._metricsCache.size >= 50) this._metricsCache.clear();
-                this._metricsCache.set(cacheKey, { version: this._cacheVersion, report });
+                this._setMetricsCache(cacheKey, report);
                 return report;
+            },
+
+            _calculateStudentStats(stu, assignments) {
+                const timeline = [];
+                const entries = [];
+                let includedCount = 0;
+                let totalScore = 0;
+                let first = null;
+                let latest = null;
+                let best = null;
+                let worst = null;
+
+                assignments.forEach(asg => {
+                    if (!this.isStuIncluded(asg, stu)) {
+                        timeline.push({ asgId: asg.id, label: asg.name, score: null, rawScore: '', included: false });
+                        return;
+                    }
+                    includedCount++;
+                    const rawScore = asg.records?.[stu.id]?.score ?? '';
+                    const score = this.parseNumericScore(rawScore);
+                    const item = { asgId: asg.id, label: asg.name, score, rawScore, included: true };
+                    timeline.push(item);
+                    if (score == null) return;
+                    entries.push(item);
+                    totalScore += score;
+                    if (first == null) first = score;
+                    latest = score;
+                    best = best == null ? score : Math.max(best, score);
+                    worst = worst == null ? score : Math.min(worst, score);
+                });
+
+                const stats = {
+                    avg: entries.length ? Number((totalScore / entries.length).toFixed(1)) : null,
+                    latest,
+                    best,
+                    worst,
+                    delta: entries.length >= 2 ? Number((latest - first).toFixed(1)) : null,
+                    coverage: `${entries.length}/${includedCount}`,
+                    trend: this.classifyScoreTrend(entries),
+                    entries
+                };
+                const timelineKey = this.buildTrendTimelineKey(timeline);
+                return {
+                    entries,
+                    timeline,
+                    stats,
+                    searchText: `${stu.id} ${stu.name}`,
+                    timelineKey,
+                    renderKey: `${stu.id}|${stu.name}|${stats.coverage}|${stats.avg ?? ''}|${stats.latest ?? ''}|${stats.best ?? ''}|${stats.delta ?? ''}|${stats.trend}|${timelineKey}`
+                };
+            },
+
+            _setMetricsCache(key, report) {
+                if (this._metricsCache.size >= (CACHE_CONFIG.MAX_METRICS_CACHE_SIZE || 50)) {
+                    const firstKey = this._metricsCache.keys().next().value;
+                    this._metricsCache.delete(firstKey);
+                }
+                this._metricsCache.set(key, { version: this._cacheVersion, report });
             },
 
             updRec(id, val, meta = {}) {
@@ -727,10 +742,10 @@
             }
         };
 
-        const UI = {
-            isReady: false,
-            actions: { has() { return false; }, run() { }, handleFile() { }, score() { } },
-            MENU_CLOSE_MS: 160,
+            const UI = {
+                isReady: false,
+                actions: { has() { return false; }, run() { }, handleFile() { }, score() { } },
+                MENU_CLOSE_MS: ANIMATION_DURATION.FULL_EXIT,
             _gridFrozen: false, _lastRenderAsgId: null, _lastRosterVersion: -1, _lastCardPoolSize: -1, _lastGridMetricsKey: '', _gridPaddingX: 0, _gridPaddingY: 0, _menuTimer: 0,
             init() {
                 BackHandler.init();
@@ -777,7 +792,7 @@
                 setTimeout(() => {
                     this.isReady = true;
                     this.render();
-                }, 200);
+                }, APP_CONFIG.UI_READY_DELAY_MS);
             },
             animationsEnabled() {
                 return State.animations !== false;
@@ -842,11 +857,11 @@
                     timer = setTimeout(() => {
                         timer = null;
                         longPressed = true;
-                        suppressClickUntil = Date.now() + 80;
+                        suppressClickUntil = Date.now() + APP_CONFIG.SUPPRESS_CLICK_DURATION_MS;
                         c.classList.remove('pressing');
                         handle(c, true);
                         resetState();
-                    }, 500);
+                    }, APP_CONFIG.LONG_PRESS_DURATION_MS);
                 };
                 this.gridEl.onpointerup = e => {
                     const c = e.target.closest('.student-card');
@@ -917,7 +932,7 @@
                 return this.gridEl.children[index] || null;
             },
             // 虚拟列表配置
-            VIRTUAL_SCROLL_THRESHOLD: 50,
+            VIRTUAL_SCROLL_THRESHOLD: GRID_CONFIG.VIRTUAL_SCROLL_THRESHOLD,
             _virtualRenderToken: 0,
             _isVirtualRendering: false,
 
@@ -940,7 +955,7 @@
                 }
 
                 this._isVirtualRendering = true;
-                const batchSize = 10;
+                const batchSize = GRID_CONFIG.BATCH_SIZE;
                 let index = current;
 
                 const processBatch = () => {
@@ -1135,7 +1150,7 @@
 
             // 分块渲染卡片内容
             _renderCardsChunked(asg, roster, cards, token) {
-                const batchSize = 10;
+                const batchSize = GRID_CONFIG.BATCH_SIZE;
                 let index = 0;
 
                 const processBatch = () => {
@@ -1156,11 +1171,14 @@
             }
         };
 
-        State.view = {
-            init: () => UI.init(), render: () => UI.render(),
-            renderStudent: id => UI.renderStudent(id),
-            renderProgress: (done, total) => UI.renderProgress(done, total),
-            isReady: () => UI.isReady
-        };
+            State.view = {
+                init: () => UI.init(), render: () => UI.render(),
+                renderStudent: id => UI.renderStudent(id),
+                renderProgress: (done, total) => UI.renderProgress(done, total),
+                isReady: () => UI.isReady
+            };
 
-        Object.assign(globalThis, { State, UI });
+            return { State, UI };
+        })();
+
+        Object.assign(globalThis, { State: App.State, UI: App.UI });

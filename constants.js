@@ -1,9 +1,6 @@
 /**
- * 核心模块
- * 负责初始化全局常量和工具函数
- *
- * 注意：常量已迁移至 constants.js
- * 此文件保留以确保向后兼容，实际功能由 constants.js 提供
+ * 常量定义
+ * 统一的常量集合，集中管理全应用使用的魔法数字和配置值
  */
 
 if (typeof globalThis !== 'undefined') {
@@ -36,6 +33,33 @@ if (typeof globalThis !== 'undefined') {
         globalThis.INTERACTION_THRESHOLD = {
             DRAG_CLOSE: 80,
             DRAG_MAX_OFFSET: 200
+        };
+    }
+
+    if (!globalThis.CACHE_CONFIG) {
+        globalThis.CACHE_CONFIG = {
+            MAX_METRICS_CACHE_SIZE: 50
+        };
+    }
+
+    if (!globalThis.GRID_CONFIG) {
+        globalThis.GRID_CONFIG = {
+            VIRTUAL_SCROLL_THRESHOLD: 50,
+            GRID_COLS: 5,
+            MIN_CARD_SIZE: 18,
+            MAX_CARD_SIZE: 24,
+            BATCH_SIZE: 10
+        };
+    }
+
+    if (!globalThis.APP_CONFIG) {
+        globalThis.APP_CONFIG = {
+            DEFAULT_CARD_COLOR: '#68c490',
+            PERSIST_DELAY_MS: 300,
+            INIT_DELAY_MS: 100,
+            UI_READY_DELAY_MS: 200,
+            LONG_PRESS_DURATION_MS: 500,
+            SUPPRESS_CLICK_DURATION_MS: 80
         };
     }
 }

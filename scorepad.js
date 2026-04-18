@@ -27,7 +27,13 @@ const ScorePad = {
     createEl() {
         this.backdrop = document.createElement('div');
         this.backdrop.className = 'scorepad-backdrop';
-        this.backdrop.onclick = () => this.hide();
+        // 使用 mousedown 事件，避免与触发打开的 click 事件冲突
+        this.backdrop.addEventListener('mousedown', (e) => {
+            // 确保点击的是遮罩本身，而不是面板
+            if (e.target === this.backdrop) {
+                this.hide();
+            }
+        });
 
         this.el = document.createElement('div');
         this.el.className = 'scorepad';

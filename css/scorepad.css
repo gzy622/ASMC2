@@ -1,17 +1,15 @@
 /* Scorepad - 记分板组件 */
 
-/* Scorepad Backdrop - 背景遮罩 */
+/* Scorepad Backdrop - 背景遮罩（完全透明，仅用于捕获点击事件） */
 .scorepad-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0);
+    background: transparent;
     z-index: 1100;
     pointer-events: none;
-    transition: background var(--motion-fast) var(--motion-ease-enter);
 }
 
 .scorepad-backdrop.is-open {
-    background: rgba(0, 0, 0, var(--motion-overlay-alpha));
     pointer-events: auto;
 }
 

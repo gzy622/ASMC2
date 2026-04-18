@@ -524,6 +524,42 @@ dialog.full .modal-body {
     flex-shrink: 0;
 }
 
+/* 回到顶部按钮 */
+.modal-back-to-top {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #4a90e2;
+    color: white;
+    border: none;
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s, transform 0.2s;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+
+.modal-back-to-top.is-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-back-to-top:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.modal-back-to-top:active {
+    transform: translateY(0);
+}
+
 /* Import Backup - 导入备份模块 */
 .import-shell {
     display: flex;

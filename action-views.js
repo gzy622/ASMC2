@@ -9,11 +9,30 @@ const ActionViews = {
     createShell(title) {
         const root = document.createElement('div');
         root.className = 'st-layout';
-        root.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0';
+        root.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0;position:relative';
         root.appendChild(this.createNav(title));
         const body = document.createElement('div');
         body.className = 'st-scroll-area';
         root.appendChild(body);
+
+        // 添加回到顶部按钮
+        const backToTop = document.createElement('button');
+        backToTop.className = 'modal-back-to-top';
+        backToTop.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>';
+        backToTop.onclick = () => body.scrollTo({ top: 0, behavior: 'smooth' });
+        root.appendChild(backToTop);
+
+        // 监听滚动显示/隐藏按钮
+        const toggleBtn = () => {
+            if (body.scrollTop > 100) {
+                backToTop.classList.add('is-visible');
+            } else {
+                backToTop.classList.remove('is-visible');
+            }
+        };
+        body.addEventListener('scroll', toggleBtn, { passive: true });
+        toggleBtn();
+
         return { root, body };
     },
     createPageLayout(title) { return this.createShell(title); },

@@ -54,7 +54,7 @@ const Modal = {
     buildPagePanel(title, content, btns = []) {
         const root = document.createElement('div');
         root.className = 'st-layout';
-        root.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0';
+        root.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0;position:relative';
         root.appendChild(ActionViews.createNav(title, () => this.close(false)));
 
         const scroll = document.createElement('div');
@@ -79,6 +79,25 @@ const Modal = {
         }
         scroll.appendChild(section);
         root.appendChild(scroll);
+
+        // 添加回到顶部按钮
+        const backToTop = document.createElement('button');
+        backToTop.className = 'modal-back-to-top';
+        backToTop.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>';
+        backToTop.onclick = () => scroll.scrollTo({ top: 0, behavior: 'smooth' });
+        root.appendChild(backToTop);
+
+        // 监听滚动显示/隐藏按钮
+        const toggleBtn = () => {
+            if (scroll.scrollTop > 100) {
+                backToTop.classList.add('is-visible');
+            } else {
+                backToTop.classList.remove('is-visible');
+            }
+        };
+        scroll.addEventListener('scroll', toggleBtn, { passive: true });
+        toggleBtn();
+
         return root;
     },
 

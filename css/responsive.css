@@ -107,30 +107,25 @@
     }
 
     .trend-board {
-        overflow-x: auto;
-        overscroll-behavior-x: contain;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 6px;
-        margin: 0 -4px;
-        padding-inline: 4px;
+        overflow-x: hidden;
+        padding-bottom: 0;
+        margin: 0;
+        padding-inline: 0;
     }
 
     .trend-list {
         display: flex;
-        flex-wrap: nowrap;
+        flex-direction: column;
         gap: 14px;
-        width: max-content;
-        min-width: 100%;
+        width: 100%;
+        min-width: 0;
     }
 
     .trend-card {
-        flex: 0 0 min(calc(100vw - 44px), 320px);
-        min-width: 272px;
-        scroll-snap-align: start;
-    }
-
-    .trend-board {
-        scroll-snap-type: x proximity;
+        flex: 0 0 auto;
+        width: 100%;
+        min-width: 0;
+        scroll-snap-align: none;
     }
 }
 

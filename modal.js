@@ -337,7 +337,7 @@ const Modal = {
                 rafs.forEach(rafId => cancelAnimationFrame(rafId));
                 rafs.clear();
                 cleanups.forEach(fn => {
-                    try { fn(); } catch (err) { }
+                    try { fn(); } catch (err) { console.error('Cleanup failed:', err); }
                 });
                 cleanups.clear();
                 pending = 0;

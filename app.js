@@ -1,4 +1,57 @@
         const App = (function() {
+            // 服务层集成 - 渐进式迁移
+            let servicesInitialized = false;
+            const ServicesBridge = {
+                init() {
+                    if (servicesInitialized) return;
+                    try {
+                        if (typeof RosterService !== 'undefined') RosterService.init?.();
+                        if (typeof AssignmentService !== 'undefined') AssignmentService.init?.();
+                        if (typeof PreferenceService !== 'undefined') PreferenceService.init?.();
+                        if (typeof PersistenceService !== 'undefined') PersistenceService.init?.();
+                        servicesInitialized = true;
+                    } catch (e) {
+                        console.warn('Services initialization failed, falling back to legacy mode', e);
+                    }
+                },
+                syncFromLegacy() {
+                    // 保持传统系统和服务系统同步
+                    try {
+                        if (typeof RosterService !== 'undefined') {
+                            RosterService.parse?.(State.list);
+                        }
+                        if (typeof AssignmentService !== 'undefined') {
+                            AssignmentService.init?.(State.data);
+                            AssignmentService.setCurrentId?.(State.curId);
+                        }
+                    } catch (e) {
+                        // 静默失败，不影响传统功能
+                    }
+                },
+                syncToLegacy() {
+                    // 从服务系统同步到传统系统
+                    try {
+                        if (typeof RosterService !== 'undefined') {
+                            State.list = RosterService.getRawList?.() || State.list;
+                            State.roster = RosterService.getAllStudents?.() || State.roster;
+                            State.rosterIndexMap = new Map(RosterService.getAllStudents?.().map((stu, idx) => [stu.id, idx]) || State.rosterIndexMap);
+                            State.noEnglishIds = State.roster.filter(stu => stu.noEnglish).map(stu => stu.id);
+                        }
+                        if (typeof AssignmentService !== 'undefined') {
+                            State.data = AssignmentService.getAll?.() || State.data;
+                            State.curId = AssignmentService.getCurrentId?.() || State.curId;
+                            State.asgMap = new Map(State.data.map(a => [a.id, a]));
+                        }
+                        if (typeof PreferenceService !== 'undefined') {
+                            State.animations = PreferenceService.getAnimations?.() ?? State.animations;
+                            State.prefs = PreferenceService.getPrefs?.() || State.prefs;
+                        }
+                    } catch (e) {
+                        // 静默失败，不影响传统功能
+                    }
+                }
+            };
+
             const State = {
                 list: [], roster: [], data: [], curId: null, mode: 'name', scoring: false, animations: true, debug: false,
                 prefs: { cardDoneColor: APP_CONFIG.DEFAULT_CARD_COLOR },
@@ -19,16 +72,34 @@
                 _rosterVersion: 0,
                 _gridDirtyFull: true,
                 _gridDirtyStudentIds: new Set(),
+                _useCacheService: typeof CacheService !== 'undefined',
+                _usePersistenceService: typeof PersistenceService !== 'undefined',
+                _useRosterService: typeof RosterService !== 'undefined',
+                _useAssignmentService: typeof AssignmentService !== 'undefined',
+                _usePreferenceService: typeof PreferenceService !== 'undefined',
 
                 init() {
                     const initAsync = async () => {
+                        // 初始化服务层
+                        ServicesBridge.init();
+
                         this.list = LS.get(KEYS.LIST, DEFAULT_ROSTER);
                         this.animations = LS.get(KEYS.ANIM, true);
                         this.prefs = this.normalizePrefs(LS.get(KEYS.PREFS, this.prefs));
 
+                        // 初始化服务层数据
+                        ServicesBridge.syncFromLegacy();
+
                         setTimeout(() => {
                             try {
                                 this.data = LS.get(KEYS.DATA, []).map(a => this.normalizeAsg(a)).filter(Boolean);
+                                
+                                // 初始化 AssignmentService
+                                if (this._useAssignmentService) {
+                                    AssignmentService.init(this.data);
+                                    this.curId = AssignmentService.getCurrentId();
+                                }
+                                
                                 const recovered = this.applyRecoveryDraft();
 
                                 try {
@@ -51,8 +122,15 @@
                                 this.applyCardColor();
                                 window.addEventListener('beforeunload', () => this._flushPersist({ includeDraft: true }));
                                 this.view.init();
+                                // 初始化 PersistenceService
+                                if (this._usePersistenceService) {
+                                    PersistenceService.init();
+                                }
                                 this._lastDraftSnapshot = this.getRecoverySnapshot();
                                 if (recovered) Toast.show('已恢复上次未完成的临时登记数据');
+
+                                // 再次同步到服务层
+                                ServicesBridge.syncFromLegacy();
                             } catch (err) {
                                 console.error('初始化失败:', err);
                                 Toast.show('初始化失败: ' + (err?.message || '未知错误'));
@@ -106,6 +184,9 @@
              * @returns {Object|null} 恢复状态对象或null
              */
             getRecoveryDraft() {
+                if (this._usePersistenceService) {
+                    return PersistenceService.getRecoveryDraft();
+                }
                 const draft = LS.get(KEYS.DRAFT, null);
                 if (!Validator.isValidRecoveryDraft(draft)) return null;
                 return this.cloneRecoveryState({
@@ -161,6 +242,9 @@
              * @returns {Object} 当前状态快照
              */
             getRecoverySnapshot() {
+                if (this._usePersistenceService) {
+                    return PersistenceService.getRecoverySnapshot();
+                }
                 return this.cloneRecoveryState({
                     list: this.list,
                     data: this.data,
@@ -250,40 +334,69 @@
              * @returns {boolean} 是否成功应用
              */
             applyRecoveryDraft() {
-                const draft = this.getRecoveryDraft();
-                if (!draft) return false;
-                const current = { list: this.list, data: this.data, prefs: this.prefs, curId: this.curId };
-                if (this.isSameRecoveryState(draft, current)) return false;
-                Object.assign(this, { list: draft.list, data: draft.data, prefs: draft.prefs, curId: Number.isFinite(draft.curId) ? draft.curId : this.curId });
-                return true;
+                if (this._usePersistenceService) {
+                    const success = PersistenceService.applyRecoveryDraft();
+                    if (success) {
+                        // 同步服务层数据回 State
+                        if (this._useRosterService) this.list = RosterService.getRawList();
+                        if (this._useAssignmentService) {
+                            this.data = AssignmentService.getAll();
+                            this.curId = AssignmentService.getCurrentId();
+                        }
+                        if (this._usePreferenceService) {
+                            this.prefs = PreferenceService.getPrefs();
+                            this.animations = PreferenceService.getAnimations();
+                        }
+                    }
+                    return success;
+                } else {
+                    const draft = this.getRecoveryDraft();
+                    if (!draft) return false;
+                    const current = { list: this.list, data: this.data, prefs: this.prefs, curId: this.curId };
+                    if (this.isSameRecoveryState(draft, current)) return false;
+                    Object.assign(this, { list: draft.list, data: draft.data, prefs: draft.prefs, curId: Number.isFinite(draft.curId) ? draft.curId : this.curId });
+                    return true;
+                }
             },
 
             /**
              * 队列恢复草稿保存
              */
             queueRecoveryDraft() {
-                clearTimeout(this._draftTimer);
-                this._draftDirty = true;
-                this._draftTimer = setTimeout(() => this.flushRecoveryDraft(), this._draftPersistMs);
+                if (this._usePersistenceService) {
+                    PersistenceService.queueDraft();
+                } else {
+                    clearTimeout(this._draftTimer);
+                    this._draftDirty = true;
+                    this._draftTimer = setTimeout(() => this.flushRecoveryDraft(), this._draftPersistMs);
+                }
             },
 
             flushRecoveryDraft() {
-                clearTimeout(this._draftTimer);
-                this._draftTimer = 0;
-                if (!this._draftDirty) return;
-                this._draftDirty = false;
-                this.saveRecoveryDraft();
+                if (this._usePersistenceService) {
+                    PersistenceService.flushDraft();
+                } else {
+                    clearTimeout(this._draftTimer);
+                    this._draftTimer = 0;
+                    if (!this._draftDirty) return;
+                    this._draftDirty = false;
+                    this.saveRecoveryDraft();
+                }
             },
 
             saveRecoveryDraft() {
-                clearTimeout(this._draftTimer);
-                this._draftTimer = 0;
-                this._draftDirty = false;
-                const snapshot = this.getRecoverySnapshot();
-                if (this._lastDraftSnapshot && this.isSameRecoveryState(snapshot, this._lastDraftSnapshot)) return false;
-                this._lastDraftSnapshot = this.cloneRecoveryState(snapshot);
-                LS.set(KEYS.DRAFT, { version: 1, updatedAt: Date.now(), ...snapshot });
-                return true;
+                if (this._usePersistenceService) {
+                    return PersistenceService.saveDraft();
+                } else {
+                    clearTimeout(this._draftTimer);
+                    this._draftTimer = 0;
+                    this._draftDirty = false;
+                    const snapshot = this.getRecoverySnapshot();
+                    if (this._lastDraftSnapshot && this.isSameRecoveryState(snapshot, this._lastDraftSnapshot)) return false;
+                    this._lastDraftSnapshot = this.cloneRecoveryState(snapshot);
+                    LS.set(KEYS.DRAFT, { version: 1, updatedAt: Date.now(), ...snapshot });
+                    return true;
+                }
             },
 
             sanitizeAsgIds() {
@@ -335,8 +448,12 @@
              * 使派生数据失效，清除缓存
              */
             invalidateDerived() {
-                this._cacheVersion++;
-                this._metricsCache.clear();
+                if (this._useCacheService) {
+                    CacheService.invalidateAll();
+                } else {
+                    this._cacheVersion++;
+                    this._metricsCache.clear();
+                }
             },
 
             /**
@@ -362,15 +479,30 @@
                 return dirty;
             },
 
-            _queuePersist() { clearTimeout(this._persistTimer); this._persistTimer = setTimeout(() => this._flushPersist(), 300); },
+            _queuePersist() { 
+                if (this._usePersistenceService) {
+                    PersistenceService.queuePersist();
+                } else {
+                    clearTimeout(this._persistTimer); 
+                    this._persistTimer = setTimeout(() => this._flushPersist(), 300); 
+                }
+            },
             queuePersist() { this._queuePersist(); }, // Maintain API
 
             _flushPersist({ includeDraft = false } = {}) {
-                clearTimeout(this._persistTimer);
-                this._persistTimer = 0;
-                if (this._dirtyData) { LS.set(KEYS.DATA, this.data); this._dirtyData = false; }
-                if (this._dirtyList) { LS.set(KEYS.LIST, this.list); this._dirtyList = false; }
-                if (includeDraft) this.flushRecoveryDraft();
+                if (this._usePersistenceService) {
+                    PersistenceService.markDirtyData(this._dirtyData);
+                    PersistenceService.markDirtyList(this._dirtyList);
+                    PersistenceService.flushPersist({ includeDraft });
+                    this._dirtyData = false;
+                    this._dirtyList = false;
+                } else {
+                    clearTimeout(this._persistTimer);
+                    this._persistTimer = 0;
+                    if (this._dirtyData) { LS.set(KEYS.DATA, this.data); this._dirtyData = false; }
+                    if (this._dirtyList) { LS.set(KEYS.LIST, this.list); this._dirtyList = false; }
+                    if (includeDraft) this.flushRecoveryDraft();
+                }
             },
             flushPersist(options) { this._flushPersist(options); }, // Maintain API
 
@@ -380,6 +512,9 @@
              * @returns {Object} 解析后的学生对象 {id, name, noEnglish}
              */
             parseRosterLine(rawLine) {
+                if (this._useRosterService) {
+                    return RosterService.parseLine(rawLine);
+                }
                 const lineText = String(rawLine ?? '').trim();
                 const noEnRegex = /\s*#(?:非英语|非英|no-en|noeng|not-en)\s*$/i;
                 const noEnglish = noEnRegex.test(lineText);
@@ -394,6 +529,9 @@
              * @returns {string[]} 重复的ID列表
              */
             getDuplicateIds(ids) {
+                if (this._useRosterService) {
+                    return RosterService.getDuplicateIds?.(ids) ?? [];
+                }
                 const seen = new Set(), dup = new Set();
                 ids.forEach(id => { const key = String(id || '').trim(); if (!key) return; if (seen.has(key)) dup.add(key); seen.add(key); });
                 return Array.from(dup);
@@ -406,6 +544,10 @@
              * @throws {Error} 存在重复ID时抛出错误
              */
             assertUniqueRosterIds(ids, sourceLabel = '名单') {
+                if (this._useRosterService) {
+                    RosterService.assertUniqueIds?.(ids, sourceLabel);
+                    return;
+                }
                 const dup = this.getDuplicateIds(ids);
                 if (dup.length) throw new Error(`${sourceLabel}存在重复学号: ${dup.join('、')}`);
             },
@@ -416,11 +558,19 @@
              * @returns {void}
              */
             parseRoster() {
-                this.roster = this.list.map(l => this.parseRosterLine(l)).filter(s => s.id);
-                this.assertUniqueRosterIds(this.roster.map(stu => stu.id), '名单');
-                this.rosterIndexMap = new Map(this.roster.map((stu, index) => [stu.id, index]));
-                this.noEnglishIds = this.roster.filter(stu => stu.noEnglish).map(stu => stu.id);
-                this._rosterVersion++;
+                if (this._useRosterService) {
+                    const result = RosterService.parse(this.list);
+                    this.roster = RosterService.getAllStudents();
+                    this.rosterIndexMap = new Map(this.roster.map((stu, index) => [stu.id, index]));
+                    this.noEnglishIds = this.roster.filter(stu => stu.noEnglish).map(stu => stu.id);
+                    this._rosterVersion = RosterService.getVersion();
+                } else {
+                    this.roster = this.list.map(l => this.parseRosterLine(l)).filter(s => s.id);
+                    this.assertUniqueRosterIds(this.roster.map(stu => stu.id), '名单');
+                    this.rosterIndexMap = new Map(this.roster.map((stu, index) => [stu.id, index]));
+                    this.noEnglishIds = this.roster.filter(stu => stu.noEnglish).map(stu => stu.id);
+                    this._rosterVersion++;
+                }
                 this.invalidateDerived();
                 this.markGridDirty({ full: true });
             },
@@ -522,74 +672,151 @@
             get cur() { return this.asgMap.get(this.curId) || this.data[0]; },
 
             addAsg(n) {
-                const id = IdGenerator.generateUnique(id => this.asgMap.has(id));
-                this.data.push(this.normalizeAsg({ id, name: (n || '').trim() || '未命名任务', subject: '英语', records: {} }));
-                this._ensureAsgIndex();
-                this.curId = id;
-                this.markGridDirty({ full: true });
-                this.save({ asgListChanged: true, normalizeMode: 'none', invalidateDerived: false });
+                if (this._useAssignmentService) {
+                    const newAsg = AssignmentService.create(n);
+                    this.data = AssignmentService.getAll();
+                    this._ensureAsgIndex();
+                    this.curId = AssignmentService.getCurrentId();
+                    this.markGridDirty({ full: true });
+                    this.save({ asgListChanged: true, normalizeMode: 'none', invalidateDerived: false });
+                } else {
+                    const id = IdGenerator.generateUnique(id => this.asgMap.has(id));
+                    this.data.push(this.normalizeAsg({ id, name: (n || '').trim() || '未命名任务', subject: '英语', records: {} }));
+                    this._ensureAsgIndex();
+                    this.curId = id;
+                    this.markGridDirty({ full: true });
+                    this.save({ asgListChanged: true, normalizeMode: 'none', invalidateDerived: false });
+                }
             },
 
             selectAsg(id) {
-                if (!this.asgMap.has(id)) {
-                    return;
+                if (this._useAssignmentService) {
+                    if (!AssignmentService.has(id)) {
+                        return;
+                    }
+                    AssignmentService.select(id);
+                    this.curId = AssignmentService.getCurrentId();
+                } else {
+                    if (!this.asgMap.has(id)) {
+                        return;
+                    }
+                    this.curId = id;
                 }
-                this.curId = id;
                 this.markGridDirty({ full: true });
                 this.view.render();
             },
 
             renameAsg(id, name) {
-                const asg = this.asgMap.get(id);
-                if (!asg || !(name || '').trim()) return false;
-                asg.name = name.trim();
-                this.save({ asgListChanged: true, normalizeMode: 'target', targetAsgId: id, invalidateDerived: false });
-                return true;
+                if (this._useAssignmentService) {
+                    const success = AssignmentService.rename(id, name);
+                    if (success) {
+                        this.data = AssignmentService.getAll();
+                        this._ensureAsgIndex();
+                        this.save({ asgListChanged: true, normalizeMode: 'target', targetAsgId: id, invalidateDerived: false });
+                    }
+                    return success;
+                } else {
+                    const asg = this.asgMap.get(id);
+                    if (!asg || !(name || '').trim()) return false;
+                    asg.name = name.trim();
+                    this.save({ asgListChanged: true, normalizeMode: 'target', targetAsgId: id, invalidateDerived: false });
+                    return true;
+                }
             },
 
             updateAsgMeta(id, payload = {}) {
-                const asg = this.asgMap.get(id);
-                if (!asg) return false;
-                const safeName = String(payload.name ?? asg.name).trim();
-                const safeSubject = String(payload.subject ?? asg.subject ?? '').trim() || '英语';
-                if (!safeName) return false;
-                const prevSub = this.getAsgSubject(asg);
-                Object.assign(asg, { name: safeName, subject: safeSubject });
-                if (id === this.curId && prevSub !== safeSubject) this.markGridDirty({ full: true });
-                this.save({ asgListChanged: true, normalizeMode: 'target', targetAsgId: id, invalidateDerived: prevSub !== safeSubject });
-                return true;
+                if (this._useAssignmentService) {
+                    const success = AssignmentService.updateMeta(id, payload);
+                    if (success) {
+                        this.data = AssignmentService.getAll();
+                        this._ensureAsgIndex();
+                        const asg = this.asgMap.get(id);
+                        const prevSub = this.getAsgSubject(asg);
+                        if (id === this.curId && prevSub !== (payload.subject ?? asg?.subject)) this.markGridDirty({ full: true });
+                        this.save({ asgListChanged: true, normalizeMode: 'target', targetAsgId: id, invalidateDerived: true });
+                    }
+                    return success;
+                } else {
+                    const asg = this.asgMap.get(id);
+                    if (!asg) return false;
+                    const safeName = String(payload.name ?? asg.name).trim();
+                    const safeSubject = String(payload.subject ?? asg.subject ?? '').trim() || '英语';
+                    if (!safeName) return false;
+                    const prevSub = this.getAsgSubject(asg);
+                    Object.assign(asg, { name: safeName, subject: safeSubject });
+                    if (id === this.curId && prevSub !== safeSubject) this.markGridDirty({ full: true });
+                    this.save({ asgListChanged: true, normalizeMode: 'target', targetAsgId: id, invalidateDerived: prevSub !== safeSubject });
+                    return true;
+                }
             },
 
             removeAsg(id) {
                 if (this.data.length <= 1) return false;
-                const idx = this.data.findIndex(a => a.id === id);
-                if (idx === -1) {
-                    return false;
+                if (this._useAssignmentService) {
+                    const success = AssignmentService.remove(id);
+                    if (success) {
+                        this.data = AssignmentService.getAll();
+                        this._ensureAsgIndex();
+                        this.curId = AssignmentService.getCurrentId();
+                        this.markGridDirty({ full: true });
+                        this.save({ asgListChanged: true, normalizeMode: 'none', invalidateDerived: false });
+                    }
+                    return success;
+                } else {
+                    const idx = this.data.findIndex(a => a.id === id);
+                    if (idx === -1) {
+                        return false;
+                    }
+                    this.data.splice(idx, 1);
+                    if (this.curId === id) this.curId = (this.data[Math.max(0, idx - 1)] || this.data[0]).id;
+                    this._ensureAsgIndex();
+                    this.markGridDirty({ full: true });
+                    this.save({ asgListChanged: true, normalizeMode: 'none', invalidateDerived: false });
+                    return true;
                 }
-                this.data.splice(idx, 1);
-                if (this.curId === id) this.curId = (this.data[Math.max(0, idx - 1)] || this.data[0]).id;
-                this._ensureAsgIndex();
-                this.markGridDirty({ full: true });
-                this.save({ asgListChanged: true, normalizeMode: 'none', invalidateDerived: false });
-                return true;
             },
 
-            getAsgSubject(asg) { return String(asg?.subject || '').trim() || (/英语/.test(asg?.name || '') ? '英语' : '其他'); },
-            isEnglishAsg(asg) { return this.getAsgSubject(asg) === '英语'; },
+            getAsgSubject(asg) { 
+                if (this._useAssignmentService && asg) {
+                    return AssignmentService.getSubject(asg);
+                }
+                return String(asg?.subject || '').trim() || (/英语/.test(asg?.name || '') ? '英语' : '其他'); 
+            },
+            isEnglishAsg(asg) { 
+                if (this._useAssignmentService && asg) {
+                    return AssignmentService.isEnglish(asg);
+                }
+                return this.getAsgSubject(asg) === '英语'; 
+            },
             isStuIncluded(asg, stu) { return !(this.isEnglishAsg(asg) && stu.noEnglish); },
 
             getAsgMetrics(asg) {
                 if (!asg) return { total: 0, done: 0 };
-                const cached = this._metricsCache.get(asg.id);
-                if (cached && cached.version === this._cacheVersion) return cached.metrics;
-                let total = 0, done = 0;
-                for (const stu of this.roster) {
-                    if (!this.isStuIncluded(asg, stu)) continue;
-                    total++; if (asg.records?.[stu.id]?.done) done++;
+                
+                if (this._useCacheService) {
+                    const cached = CacheService.get(CacheService.CacheNames?.METRICS || 'metrics', asg.id);
+                    if (cached && cached.version === CacheService.getVersion()) return cached.metrics;
+                    
+                    let total = 0, done = 0;
+                    for (const stu of this.roster) {
+                        if (!this.isStuIncluded(asg, stu)) continue;
+                        total++; if (asg.records?.[stu.id]?.done) done++;
+                    }
+                    const metrics = { total, done };
+                    CacheService.set(CacheService.CacheNames?.METRICS || 'metrics', asg.id, { version: CacheService.getVersion(), metrics });
+                    return metrics;
+                } else {
+                    const cached = this._metricsCache.get(asg.id);
+                    if (cached && cached.version === this._cacheVersion) return cached.metrics;
+                    let total = 0, done = 0;
+                    for (const stu of this.roster) {
+                        if (!this.isStuIncluded(asg, stu)) continue;
+                        total++; if (asg.records?.[stu.id]?.done) done++;
+                    }
+                    const metrics = { total, done };
+                    this._metricsCache.set(asg.id, { version: this._cacheVersion, metrics });
+                    return metrics;
                 }
-                const metrics = { total, done };
-                this._metricsCache.set(asg.id, { version: this._cacheVersion, metrics });
-                return metrics;
             },
 
             getAsgTotalCount(asg) { return this.getAsgMetrics(asg).total; },
@@ -644,27 +871,52 @@
 
             getScoreRangeReport(startId, endId, source = this.data) {
                 const assignments = this.getAsgRange(startId, endId, source);
-                const cacheKey = `range:${this._cacheVersion}|${this._rosterVersion}|${this._asgListVersion}|${assignments.map(asg => asg.id).join(',')}`;
-                const cached = this._metricsCache.get(cacheKey);
-                if (cached && cached.version === this._cacheVersion) return cached.report;
+                
+                if (this._useCacheService) {
+                    const cacheKey = `range:${CacheService.getVersion()}|${this._rosterVersion}|${this._asgListVersion}|${assignments.map(asg => asg.id).join(',')}`;
+                    const cached = CacheService.get(CacheService.CacheNames?.METRICS || 'metrics', cacheKey);
+                    if (cached && cached.version === CacheService.getVersion()) return cached.report;
 
-                let scoredStudentCount = 0;
-                const students = this.roster.map(stu => {
-                    const studentStats = this._calculateStudentStats(stu, assignments);
-                    if (studentStats.stats.entries.length) scoredStudentCount++;
-                    return {
-                        id: stu.id,
-                        name: stu.name,
-                        ...studentStats
+                    let scoredStudentCount = 0;
+                    const students = this.roster.map(stu => {
+                        const studentStats = this._calculateStudentStats(stu, assignments);
+                        if (studentStats.stats.entries.length) scoredStudentCount++;
+                        return {
+                            id: stu.id,
+                            name: stu.name,
+                            ...studentStats
+                        };
+                    });
+                    const report = {
+                        assignments: assignments.map(asg => ({ id: asg.id, name: asg.name, subject: this.getAsgSubject(asg) })),
+                        students,
+                        scoredStudentCount
                     };
-                });
-                const report = {
-                    assignments: assignments.map(asg => ({ id: asg.id, name: asg.name, subject: this.getAsgSubject(asg) })),
-                    students,
-                    scoredStudentCount
-                };
-                this._setMetricsCache(cacheKey, report);
-                return report;
+                    CacheService.set(CacheService.CacheNames?.METRICS || 'metrics', cacheKey, { version: CacheService.getVersion(), report });
+                    return report;
+                } else {
+                    const cacheKey = `range:${this._cacheVersion}|${this._rosterVersion}|${this._asgListVersion}|${assignments.map(asg => asg.id).join(',')}`;
+                    const cached = this._metricsCache.get(cacheKey);
+                    if (cached && cached.version === this._cacheVersion) return cached.report;
+
+                    let scoredStudentCount = 0;
+                    const students = this.roster.map(stu => {
+                        const studentStats = this._calculateStudentStats(stu, assignments);
+                        if (studentStats.stats.entries.length) scoredStudentCount++;
+                        return {
+                            id: stu.id,
+                            name: stu.name,
+                            ...studentStats
+                        };
+                    });
+                    const report = {
+                        assignments: assignments.map(asg => ({ id: asg.id, name: asg.name, subject: this.getAsgSubject(asg) })),
+                        students,
+                        scoredStudentCount
+                    };
+                    this._setMetricsCache(cacheKey, report);
+                    return report;
+                }
             },
 
             _calculateStudentStats(stu, assignments) {
@@ -718,11 +970,15 @@
             },
 
             _setMetricsCache(key, report) {
-                if (this._metricsCache.size >= (CACHE_CONFIG.MAX_METRICS_CACHE_SIZE || 50)) {
-                    const firstKey = this._metricsCache.keys().next().value;
-                    this._metricsCache.delete(firstKey);
+                if (this._useCacheService) {
+                    CacheService.set(CacheService.CacheNames?.METRICS || 'metrics', key, { version: CacheService.getVersion(), report });
+                } else {
+                    if (this._metricsCache.size >= (CACHE_CONFIG.MAX_METRICS_CACHE_SIZE || 50)) {
+                        const firstKey = this._metricsCache.keys().next().value;
+                        this._metricsCache.delete(firstKey);
+                    }
+                    this._metricsCache.set(key, { version: this._cacheVersion, report });
                 }
-                this._metricsCache.set(key, { version: this._cacheVersion, report });
             },
 
             updRec(id, val, meta = {}) {

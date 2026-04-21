@@ -94,7 +94,7 @@
                     </div>
 
 
-                    <div id="menuVersion" class="menu-info">Version: 20260419-03</div>
+                    <div id="menuVersion" class="menu-info">Version: 20260421-01</div>
                 </div>
             </div>
         </div>
@@ -123,6 +123,14 @@
     <script src="constants.js"></script>
     <script src="utils.js"></script>
     <script src="core.js"></script>
+    <!-- 服务层 - 渐进式迁移，保持与原架构兼容 -->
+    <script src="services/cache-service.js"></script>
+    <script src="services/roster-service.js"></script>
+    <script src="services/assignment-service.js"></script>
+    <script src="services/preference-service.js"></script>
+    <script src="services/persistence-service.js"></script>
+    <script src="services/index.js"></script>
+    <!-- 结束服务层 -->
     <script src="back-handler.js"></script>
     <script src="modal.js"></script>
     <script src="bottom-sheet.js"></script>

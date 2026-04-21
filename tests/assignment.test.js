@@ -306,6 +306,47 @@ describe('Assignment (任务管理)', () => {
         });
     });
 
+    describe('任务运行时构建器', () => {
+        it('应该复用同一组上下文完成任务操作与科目判断', () => {
+            const runtime = globalThis.__AC2_INTERNALS__.stateAssignment.createAssignmentRuntime({
+                useAssignmentService: false,
+                assignmentService: null,
+                data: [],
+                asgMap: new Map(),
+                curId: null,
+                normalizeAsg: value => State.normalizeAsg(value),
+                createUniqueId: exists => exists(1) ? 2 : 1
+            });
+
+            const addResult = runtime.addAsg('英语作业');
+            const nextMap = new Map(addResult.data.map(asg => [asg.id, asg]));
+            const subjectRuntime = globalThis.__AC2_INTERNALS__.stateAssignment.createAssignmentRuntime({
+                useAssignmentService: false,
+                assignmentService: null,
+                data: addResult.data,
+                asgMap: nextMap,
+                curId: addResult.curId,
+                normalizeAsg: value => State.normalizeAsg(value),
+                createUniqueId: exists => exists(1) ? 2 : 1
+            });
+            const student = { id: '99', name: '测试', noEnglish: true };
+            const addedAsg = addResult.data[0];
+
+            expect(subjectRuntime.getAsgSubject(addedAsg)).toBe('英语');
+            expect(subjectRuntime.isEnglishAsg(addedAsg)).toBe(true);
+            expect(subjectRuntime.isStuIncluded(addedAsg, student)).toBe(false);
+
+            const metaResult = subjectRuntime.updateAsgMeta(addResult.curId, { name: '数学作业', subject: '数学' });
+            const recResult = subjectRuntime.updRec(metaResult.data[0], '01', { score: '88', done: true });
+            const removeResult = subjectRuntime.removeAsg(addResult.curId);
+
+            expect(addResult.curId).toBe(1);
+            expect(metaResult.nextSubject).toBe('数学');
+            expect(recResult.nextDone).toBe(true);
+            expect(removeResult.changed).toBe(false);
+        });
+    });
+
     describe('任务统计', () => {
         beforeEach(() => {
             State.addAsg('任务1');

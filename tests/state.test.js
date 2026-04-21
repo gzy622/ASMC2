@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 describe('State', () => {
     beforeEach(() => {
@@ -66,6 +68,26 @@ describe('State', () => {
         expect(State.noEnglishIds).toContain('02');
     });
 
+    it('should reuse a roster runtime to parse lines, detect duplicates and build roster indexes', () => {
+        const runtime = globalThis.__AC2_INTERNALS__.stateRoster.createRosterRuntime({
+            useRosterService: false,
+            rosterService: null,
+            list: ['01 张三', '02 李四 #非英语', '03 王五'],
+            previousRosterVersion: 4
+        });
+
+        expect(runtime.parseRosterLine('09 赵六 #非英语')).toEqual({ id: '09', name: '赵六', noEnglish: true });
+        expect(runtime.getDuplicateIds(['01', '02', '02', '03'])).toEqual(['02']);
+        expect(() => runtime.assertUniqueRosterIds(['01', '01'], '测试名单')).toThrow('测试名单存在重复学号: 01');
+
+        const parsed = runtime.parseRoster();
+
+        expect(parsed.roster.map(stu => stu.id)).toEqual(['01', '02', '03']);
+        expect(parsed.rosterIndexMap.get('01')).toBe(0);
+        expect(parsed.noEnglishIds).toEqual(['02']);
+        expect(parsed.rosterVersion).toBe(5);
+    });
+
     it('should default to showing names and sync view status text', () => {
         State.mode = 'name';
         document.body.classList.remove('mode-names');
@@ -80,6 +102,37 @@ describe('State', () => {
         expect(document.body.classList.contains('mode-names')).toBe(true);
         expect(btnView.classList.contains('active')).toBe(true);
         expect(statusView.textContent).toBe('开');
+    });
+
+    it('should reuse a ui runtime to apply ui state and toggle view mode', () => {
+        State.mode = 'id';
+        State.scoring = true;
+        State.animations = false;
+        State.prefs = State.normalizePrefs({ cardDoneColor: '#123456' });
+
+        const runtime = globalThis.__AC2_INTERNALS__.stateUi.createUiRuntime({
+            documentRef: document,
+            getById: id => document.getElementById(id),
+            ColorUtil,
+            mode: () => State.mode,
+            setMode: value => { State.mode = value; },
+            scoring: () => State.scoring,
+            animations: () => State.animations,
+            prefs: () => State.prefs
+        });
+
+        runtime.applyAnim();
+        runtime.applyScoring();
+        runtime.applyViewMode();
+        runtime.applyCardColor();
+        runtime.toggleViewMode();
+
+        expect(document.body.classList.contains('no-animations')).toBe(true);
+        expect(document.getElementById('statusAnim').textContent).toBe('关');
+        expect(document.getElementById('btnScore').classList.contains('active')).toBe(true);
+        expect(document.body.classList.contains('mode-names')).toBe(false);
+        expect(State.mode).toBe('name');
+        expect(document.documentElement.style.getPropertyValue('--done-card-start')).toBeTruthy();
     });
 
     it('should normalize assignments', () => {
@@ -176,6 +229,115 @@ describe('State', () => {
 
         expect(State.saveRecoveryDraft()).toBe(false);
         expect(setSpy).not.toHaveBeenCalled();
+    });
+
+    it('should reuse a draft runtime to build snapshot and persist recovery draft', () => {
+        State.list = ['01 张三'];
+        State.data = [State.normalizeAsg({ id: 1, name: '英语作业', subject: '英语', records: { '01': { score: '88', done: true } } })];
+        State.prefs = State.normalizePrefs({ cardDoneColor: '#123456' });
+        State.curId = 1;
+
+        let lastDraftSnapshot = null;
+        const setSpy = vi.spyOn(LS, 'set').mockImplementation(() => {});
+        const runtime = globalThis.__AC2_INTERNALS__.stateDraft.createDraftRuntime({
+            usePersistenceService: false,
+            persistenceService: null,
+            useRosterService: false,
+            rosterService: null,
+            useAssignmentService: false,
+            assignmentService: null,
+            usePreferenceService: false,
+            preferenceService: null,
+            LS,
+            KEYS,
+            Validator,
+            normalizeAsg: value => State.normalizeAsg(value),
+            normalizePrefs: value => State.normalizePrefs(value),
+            getState: () => ({
+                list: State.list,
+                data: State.data,
+                prefs: State.prefs,
+                curId: State.curId
+            }),
+            setState: nextState => Object.assign(State, nextState),
+            getLastDraftSnapshot: () => lastDraftSnapshot,
+            setLastDraftSnapshot: snapshot => { lastDraftSnapshot = snapshot; },
+            clearDraftTimer: () => {
+                State._draftTimer = 0;
+                State._draftDirty = false;
+            }
+        });
+
+        const snapshot = runtime.getRecoverySnapshot();
+        const saved = runtime.saveRecoveryDraft();
+
+        expect(snapshot.list).toEqual(['01 张三']);
+        expect(saved).toBe(true);
+        expect(runtime.isSameRecoveryState(snapshot, lastDraftSnapshot)).toBe(true);
+        expect(setSpy).toHaveBeenCalledWith(
+            KEYS.DRAFT,
+            expect.objectContaining({
+                version: 1,
+                curId: 1
+            })
+        );
+    });
+
+    it('should reuse a persistence runtime for save, prefs and animation writes', () => {
+        let dirtyData = false;
+        let dirtyList = false;
+        let prefs = State.normalizePrefs({ cardDoneColor: '#123456' });
+        let animations = false;
+        const queueRecoveryDraft = vi.fn();
+        const flushRecoveryDraft = vi.fn();
+        const applyCardColor = vi.fn();
+        const applyAnim = vi.fn();
+        const setSpy = vi.spyOn(LS, 'set').mockImplementation(() => {});
+        const runtime = globalThis.__AC2_INTERNALS__.statePersistence.createPersistenceRuntime({
+            usePersistenceService: false,
+            persistenceService: null,
+            persistTimer: () => 0,
+            setPersistTimer: () => {},
+            dirtyData: () => dirtyData,
+            dirtyList: () => dirtyList,
+            setDirtyData: value => { dirtyData = value; },
+            setDirtyList: value => { dirtyList = value; },
+            LS,
+            KEYS,
+            data: () => [{ id: 1, name: '任务1', subject: '英语', records: {} }],
+            list: () => ['01 张三'],
+            flushRecoveryDraft,
+            normalizePrefs: value => State.normalizePrefs(value),
+            prefs: () => prefs,
+            setPrefs: value => { prefs = value; },
+            queueRecoveryDraft,
+            applyCardColor,
+            animations: () => animations,
+            applyAnim,
+            sanitizeAsgIds: vi.fn(),
+            ensureAsgIndex: vi.fn(),
+            findAsgById: vi.fn(),
+            normalizeAsgInPlace: vi.fn(),
+            runInvalidateDerived: vi.fn(),
+            onAsgListChanged: vi.fn(),
+            isViewReady: () => false,
+            renderView: vi.fn()
+        });
+
+        runtime.save({ render: false, immediate: true, normalizeMode: 'none', dirtyData: true, dirtyList: true });
+        runtime.savePrefs();
+        runtime.saveAnim();
+
+        expect(setSpy).toHaveBeenCalledWith(KEYS.DATA, expect.any(Array));
+        expect(setSpy).toHaveBeenCalledWith(KEYS.LIST, ['01 张三']);
+        expect(setSpy).toHaveBeenCalledWith(KEYS.PREFS, expect.objectContaining({ cardDoneColor: '#123456' }));
+        expect(setSpy).toHaveBeenCalledWith(KEYS.ANIM, false);
+        expect(queueRecoveryDraft).toHaveBeenCalled();
+        expect(flushRecoveryDraft).toHaveBeenCalled();
+        expect(applyCardColor).toHaveBeenCalled();
+        expect(applyAnim).toHaveBeenCalled();
+        expect(dirtyData).toBe(false);
+        expect(dirtyList).toBe(false);
     });
 
     it('should keep metrics cache on rename but refresh it on subject change', () => {
@@ -821,5 +983,102 @@ describe('State', () => {
 
         // 恢复动画设置
         State.animations = originalAnim;
+    });
+
+    it('should not keep silent catch blocks in app services bridge', () => {
+        const source = readFileSync(join(process.cwd(), 'app.js'), 'utf8');
+        const silentCatchPattern = /catch\s*\([^)]*\)\s*\{\s*(?:\/\/[^\n]*\n\s*)?\}/g;
+
+        expect(source.match(silentCatchPattern) || []).toEqual([]);
+    });
+
+    it('should load extracted state helper scripts before app.js in index.html', () => {
+        const html = readFileSync(join(process.cwd(), 'index.html'), 'utf8');
+        const trendIndex = html.indexOf('state-trend.js');
+        const draftIndex = html.indexOf('state-draft.js');
+        const rosterIndex = html.indexOf('state-roster.js');
+        const appIndex = html.indexOf('app.js');
+
+        expect(trendIndex).toBeGreaterThan(-1);
+        expect(draftIndex).toBeGreaterThan(-1);
+        expect(rosterIndex).toBeGreaterThan(-1);
+        expect(trendIndex).toBeLessThan(appIndex);
+        expect(draftIndex).toBeLessThan(appIndex);
+        expect(rosterIndex).toBeLessThan(appIndex);
+    });
+
+    it('should load extracted state helper scripts before app.js in test setup', () => {
+        const setupSource = readFileSync(join(process.cwd(), 'tests/setup.js'), 'utf8');
+        const trendIndex = setupSource.indexOf('state-trend.js');
+        const draftIndex = setupSource.indexOf('state-draft.js');
+        const rosterIndex = setupSource.indexOf('state-roster.js');
+        const appIndex = setupSource.indexOf('app.js');
+
+        expect(trendIndex).toBeGreaterThan(-1);
+        expect(draftIndex).toBeGreaterThan(-1);
+        expect(rosterIndex).toBeGreaterThan(-1);
+        expect(trendIndex).toBeLessThan(appIndex);
+        expect(draftIndex).toBeLessThan(appIndex);
+        expect(rosterIndex).toBeLessThan(appIndex);
+    });
+
+    it('should expose assignment helper and load it before app.js', () => {
+        expect(globalThis.__AC2_INTERNALS__?.stateAssignment).toBeDefined();
+
+        const html = readFileSync(join(process.cwd(), 'index.html'), 'utf8');
+        const setupSource = readFileSync(join(process.cwd(), 'tests/setup.js'), 'utf8');
+
+        expect(html.indexOf('state-assignment.js')).toBeGreaterThan(-1);
+        expect(setupSource.indexOf('state-assignment.js')).toBeGreaterThan(-1);
+        expect(html.indexOf('state-assignment.js')).toBeLessThan(html.indexOf('app.js'));
+        expect(setupSource.indexOf('state-assignment.js')).toBeLessThan(setupSource.indexOf('app.js'));
+    });
+
+    it('should expose persistence helper and load it before app.js', () => {
+        expect(globalThis.__AC2_INTERNALS__?.statePersistence).toBeDefined();
+
+        const html = readFileSync(join(process.cwd(), 'index.html'), 'utf8');
+        const setupSource = readFileSync(join(process.cwd(), 'tests/setup.js'), 'utf8');
+
+        expect(html.indexOf('state-persistence.js')).toBeGreaterThan(-1);
+        expect(setupSource.indexOf('state-persistence.js')).toBeGreaterThan(-1);
+        expect(html.indexOf('state-persistence.js')).toBeLessThan(html.indexOf('app.js'));
+        expect(setupSource.indexOf('state-persistence.js')).toBeLessThan(setupSource.indexOf('app.js'));
+    });
+
+    it('should expose ui helper and load it before app.js', () => {
+        expect(globalThis.__AC2_INTERNALS__?.stateUi).toBeDefined();
+
+        const html = readFileSync(join(process.cwd(), 'index.html'), 'utf8');
+        const setupSource = readFileSync(join(process.cwd(), 'tests/setup.js'), 'utf8');
+
+        expect(html.indexOf('state-ui.js')).toBeGreaterThan(-1);
+        expect(setupSource.indexOf('state-ui.js')).toBeGreaterThan(-1);
+        expect(html.indexOf('state-ui.js')).toBeLessThan(html.indexOf('app.js'));
+        expect(setupSource.indexOf('state-ui.js')).toBeLessThan(setupSource.indexOf('app.js'));
+    });
+
+    it('should expose core helper and load it before app.js', () => {
+        expect(globalThis.__AC2_INTERNALS__?.stateCore).toBeDefined();
+
+        const html = readFileSync(join(process.cwd(), 'index.html'), 'utf8');
+        const setupSource = readFileSync(join(process.cwd(), 'tests/setup.js'), 'utf8');
+
+        expect(html.indexOf('state-core.js')).toBeGreaterThan(-1);
+        expect(setupSource.indexOf('state-core.js')).toBeGreaterThan(-1);
+        expect(html.indexOf('state-core.js')).toBeLessThan(html.indexOf('app.js'));
+        expect(setupSource.indexOf('state-core.js')).toBeLessThan(setupSource.indexOf('app.js'));
+    });
+
+    it('should expose init helper and load it before app.js', () => {
+        expect(globalThis.__AC2_INTERNALS__?.stateInit).toBeDefined();
+
+        const html = readFileSync(join(process.cwd(), 'index.html'), 'utf8');
+        const setupSource = readFileSync(join(process.cwd(), 'tests/setup.js'), 'utf8');
+
+        expect(html.indexOf('state-init.js')).toBeGreaterThan(-1);
+        expect(setupSource.indexOf('state-init.js')).toBeGreaterThan(-1);
+        expect(html.indexOf('state-init.js')).toBeLessThan(html.indexOf('app.js'));
+        expect(setupSource.indexOf('state-init.js')).toBeLessThan(setupSource.indexOf('app.js'));
     });
 });

@@ -1,56 +1,21 @@
         const App = (function() {
             // 服务层集成 - 渐进式迁移
             let servicesInitialized = false;
-            const ServicesBridge = {
-                init() {
-                    if (servicesInitialized) return;
-                    try {
-                        if (typeof RosterService !== 'undefined') RosterService.init?.();
-                        if (typeof AssignmentService !== 'undefined') AssignmentService.init?.();
-                        if (typeof PreferenceService !== 'undefined') PreferenceService.init?.();
-                        if (typeof PersistenceService !== 'undefined') PersistenceService.init?.();
-                        servicesInitialized = true;
-                    } catch (e) {
-                        console.warn('Services initialization failed, falling back to legacy mode', e);
-                    }
-                },
-                syncFromLegacy() {
-                    // 保持传统系统和服务系统同步
-                    try {
-                        if (typeof RosterService !== 'undefined') {
-                            RosterService.parse?.(State.list);
-                        }
-                        if (typeof AssignmentService !== 'undefined') {
-                            AssignmentService.init?.(State.data);
-                            AssignmentService.setCurrentId?.(State.curId);
-                        }
-                    } catch (e) {
-                        // 静默失败，不影响传统功能
-                    }
-                },
-                syncToLegacy() {
-                    // 从服务系统同步到传统系统
-                    try {
-                        if (typeof RosterService !== 'undefined') {
-                            State.list = RosterService.getRawList?.() || State.list;
-                            State.roster = RosterService.getAllStudents?.() || State.roster;
-                            State.rosterIndexMap = new Map(RosterService.getAllStudents?.().map((stu, idx) => [stu.id, idx]) || State.rosterIndexMap);
-                            State.noEnglishIds = State.roster.filter(stu => stu.noEnglish).map(stu => stu.id);
-                        }
-                        if (typeof AssignmentService !== 'undefined') {
-                            State.data = AssignmentService.getAll?.() || State.data;
-                            State.curId = AssignmentService.getCurrentId?.() || State.curId;
-                            State.asgMap = new Map(State.data.map(a => [a.id, a]));
-                        }
-                        if (typeof PreferenceService !== 'undefined') {
-                            State.animations = PreferenceService.getAnimations?.() ?? State.animations;
-                            State.prefs = PreferenceService.getPrefs?.() || State.prefs;
-                        }
-                    } catch (e) {
-                        // 静默失败，不影响传统功能
-                    }
-                }
-            };
+            const StateHelpers = globalThis.__AC2_INTERNALS__ || {};
+            const StateTrend = StateHelpers.stateTrend;
+            const StateDraft = StateHelpers.stateDraft;
+            const StateRoster = StateHelpers.stateRoster;
+            const StateAssignment = StateHelpers.stateAssignment;
+            const StatePersistence = StateHelpers.statePersistence;
+            const StateUi = StateHelpers.stateUi;
+            const StateCore = StateHelpers.stateCore;
+            const StateInit = StateHelpers.stateInit;
+            const CacheServiceRef = globalThis.CacheService;
+            const RosterServiceRef = globalThis.RosterService;
+            const AssignmentServiceRef = globalThis.AssignmentService;
+            const PreferenceServiceRef = globalThis.PreferenceService;
+            const PersistenceServiceRef = globalThis.PersistenceService;
+            let ServicesBridge;
 
             const State = {
                 list: [], roster: [], data: [], curId: null, mode: 'name', scoring: false, animations: true, debug: false,
@@ -79,69 +44,19 @@
                 _usePreferenceService: typeof PreferenceService !== 'undefined',
 
                 init() {
-                    const initAsync = async () => {
-                        // 初始化服务层
-                        ServicesBridge.init();
-
-                        this.list = LS.get(KEYS.LIST, DEFAULT_ROSTER);
-                        this.animations = LS.get(KEYS.ANIM, true);
-                        this.prefs = this.normalizePrefs(LS.get(KEYS.PREFS, this.prefs));
-
-                        // 初始化服务层数据
-                        ServicesBridge.syncFromLegacy();
-
-                        setTimeout(() => {
-                            try {
-                                this.data = LS.get(KEYS.DATA, []).map(a => this.normalizeAsg(a)).filter(Boolean);
-                                
-                                // 初始化 AssignmentService
-                                if (this._useAssignmentService) {
-                                    AssignmentService.init(this.data);
-                                    this.curId = AssignmentService.getCurrentId();
-                                }
-                                
-                                const recovered = this.applyRecoveryDraft();
-
-                                try {
-                                    this.parseRoster();
-                                } catch (err) {
-                                    window.alert(`名单数据异常：${err.message}\n请先修复本地名单后再使用。`);
-                                    throw err;
-                                }
-
-                                if (!this.data.length) {
-                                    this.addAsg('任务 1');
-                                }
-
-                                const repairedIds = this.sanitizeAsgIds();
-                                this._ensureAsgIndex();
-                                if (repairedIds) Toast.show('已自动修复异常任务 ID');
-
-                                this.curId = this.resolveCurId(this.curId);
-                                this.applyAnim();
-                                this.applyCardColor();
-                                window.addEventListener('beforeunload', () => this._flushPersist({ includeDraft: true }));
-                                this.view.init();
-                                // 初始化 PersistenceService
-                                if (this._usePersistenceService) {
-                                    PersistenceService.init();
-                                }
-                                this._lastDraftSnapshot = this.getRecoverySnapshot();
-                                if (recovered) Toast.show('已恢复上次未完成的临时登记数据');
-
-                                // 再次同步到服务层
-                                ServicesBridge.syncFromLegacy();
-                            } catch (err) {
-                                console.error('初始化失败:', err);
-                                Toast.show('初始化失败: ' + (err?.message || '未知错误'));
-                                this.data = [];
-                                this.list = DEFAULT_ROSTER;
-                                this.addAsg('任务 1');
-                            }
-                        }, APP_CONFIG.INIT_DELAY_MS || 100);
-                    };
-
-                    initAsync();
+                    StateInit.initState({
+                        state: this,
+                        servicesBridge: ServicesBridge,
+                        LS,
+                        KEYS,
+                        DEFAULT_ROSTER,
+                        APP_CONFIG,
+                        assignmentService: AssignmentServiceRef,
+                        persistenceService: PersistenceServiceRef,
+                        toast: Toast,
+                        alertFn: message => window.alert(message),
+                        beforeUnloadTarget: window
+                    });
                 },
 
             /**
@@ -150,8 +65,11 @@
              * @returns {Object} 规范化后的偏好设置
              */
             normalizePrefs(raw) {
-                const prefs = raw && typeof raw === 'object' ? raw : {};
-                return { cardDoneColor: ColorUtil.normalizeHex(prefs.cardDoneColor, '#68c490') };
+                return StateCore.normalizePrefs({
+                    raw,
+                    ColorUtil,
+                    defaultColor: '#68c490'
+                });
             },
 
             /**
@@ -159,15 +77,18 @@
              * @private
              */
             _ensureAsgIndex() {
-                if (!this.asgMap.size || this.asgMap.size !== this.data.length) {
-                    this.asgMap = new Map(this.data.map(a => [a.id, a]));
-                }
+                this.asgMap = StateCore.ensureAsgIndex({
+                    asgMap: this.asgMap,
+                    data: this.data
+                });
             },
 
             /**
              * 重建任务索引映射
              */
-            rebuildAsgIndex() { this.asgMap = new Map(this.data.map(a => [a.id, a])); },
+            rebuildAsgIndex() {
+                this.asgMap = StateCore.rebuildAsgIndex(this.data);
+            },
 
             /**
              * 解析当前任务ID
@@ -175,8 +96,43 @@
              * @returns {number|null} 有效的任务ID或null
              */
             resolveCurId(candidate) {
-                if (this.asgMap.has(candidate)) return candidate;
-                return this.data[this.data.length - 1]?.id ?? null;
+                return StateCore.resolveCurId({
+                    candidate,
+                    asgMap: this.asgMap,
+                    data: this.data
+                });
+            },
+
+            _getDraftRuntime() {
+                return StateDraft.createDraftRuntime({
+                    usePersistenceService: this._usePersistenceService,
+                    persistenceService: PersistenceServiceRef,
+                    useRosterService: this._useRosterService,
+                    rosterService: RosterServiceRef,
+                    useAssignmentService: this._useAssignmentService,
+                    assignmentService: AssignmentServiceRef,
+                    usePreferenceService: this._usePreferenceService,
+                    preferenceService: PreferenceServiceRef,
+                    LS,
+                    KEYS,
+                    Validator,
+                    normalizeAsg: value => this.normalizeAsg(value),
+                    normalizePrefs: value => this.normalizePrefs(value),
+                    getState: () => ({
+                        list: this.list,
+                        data: this.data,
+                        prefs: this.prefs,
+                        curId: this.curId
+                    }),
+                    setState: nextState => Object.assign(this, nextState),
+                    getLastDraftSnapshot: () => this._lastDraftSnapshot,
+                    setLastDraftSnapshot: snapshot => { this._lastDraftSnapshot = snapshot; },
+                    clearDraftTimer: () => {
+                        clearTimeout(this._draftTimer);
+                        this._draftTimer = 0;
+                        this._draftDirty = false;
+                    }
+                });
             },
 
             /**
@@ -184,17 +140,7 @@
              * @returns {Object|null} 恢复状态对象或null
              */
             getRecoveryDraft() {
-                if (this._usePersistenceService) {
-                    return PersistenceService.getRecoveryDraft();
-                }
-                const draft = LS.get(KEYS.DRAFT, null);
-                if (!Validator.isValidRecoveryDraft(draft)) return null;
-                return this.cloneRecoveryState({
-                    list: draft.list.map(v => String(v ?? '').trim()).filter(Boolean),
-                    data: draft.data.map(a => this.normalizeAsg(a)).filter(Boolean),
-                    prefs: this.normalizePrefs(draft.prefs),
-                    curId: Number(draft.curId)
-                });
+                return this._getDraftRuntime().getRecoveryDraft();
             },
 
             /**
@@ -203,10 +149,7 @@
              * @returns {Object} 克隆后的记录
              */
             cloneRecoveryRecords(records) {
-                const source = records && typeof records === 'object' ? records : {};
-                return Object.fromEntries(
-                    Object.entries(source).map(([id, entry]) => [id, entry && typeof entry === 'object' ? { ...entry } : entry])
-                );
+                return this._getDraftRuntime().cloneRecoveryRecords(records);
             },
 
             /**
@@ -215,10 +158,7 @@
              * @returns {Array} 克隆后的任务数据
              */
             cloneRecoveryData(data) {
-                return (Array.isArray(data) ? data : [])
-                    .map(item => this.normalizeAsg(item))
-                    .filter(Boolean)
-                    .map(asg => ({ id: asg.id, name: asg.name, subject: asg.subject, records: this.cloneRecoveryRecords(asg.records) }));
+                return this._getDraftRuntime().cloneRecoveryData(data);
             },
 
             /**
@@ -227,14 +167,7 @@
              * @returns {Object} 克隆后的状态
              */
             cloneRecoveryState(state) {
-                const source = state && typeof state === 'object' ? state : {};
-                const curId = source.curId == null || source.curId === '' ? null : Number(source.curId);
-                return {
-                    list: Array.isArray(source.list) ? source.list.map(v => String(v ?? '').trim()).filter(Boolean) : [],
-                    data: this.cloneRecoveryData(source.data),
-                    prefs: this.normalizePrefs(source.prefs),
-                    curId: Number.isFinite(curId) ? curId : null
-                };
+                return this._getDraftRuntime().cloneRecoveryState(state);
             },
 
             /**
@@ -242,15 +175,7 @@
              * @returns {Object} 当前状态快照
              */
             getRecoverySnapshot() {
-                if (this._usePersistenceService) {
-                    return PersistenceService.getRecoverySnapshot();
-                }
-                return this.cloneRecoveryState({
-                    list: this.list,
-                    data: this.data,
-                    prefs: this.prefs,
-                    curId: this.curId
-                });
+                return this._getDraftRuntime().getRecoverySnapshot();
             },
 
             /**
@@ -260,7 +185,7 @@
              * @returns {boolean}
              */
             isSameRecoveryValue(a, b) {
-                return a === b || (a == null && b == null);
+                return this._getDraftRuntime().isSameRecoveryValue(a, b);
             },
 
             /**
@@ -270,14 +195,7 @@
              * @returns {boolean}
              */
             isSameRecoveryEntry(a, b) {
-                if (a === b) return true;
-                const objA = a && typeof a === 'object' ? a : null;
-                const objB = b && typeof b === 'object' ? b : null;
-                if (!objA || !objB) return objA === objB;
-                const keysA = Object.keys(objA);
-                const keysB = Object.keys(objB);
-                if (keysA.length !== keysB.length) return false;
-                return keysA.every(key => this.isSameRecoveryValue(objA[key], objB[key]));
+                return this._getDraftRuntime().isSameRecoveryEntry(a, b);
             },
 
             /**
@@ -287,12 +205,7 @@
              * @returns {boolean}
              */
             isSameRecoveryRecords(a, b) {
-                const recA = a && typeof a === 'object' ? a : {};
-                const recB = b && typeof b === 'object' ? b : {};
-                const idsA = Object.keys(recA);
-                const idsB = Object.keys(recB);
-                if (idsA.length !== idsB.length) return false;
-                return idsA.every(id => this.isSameRecoveryEntry(recA[id], recB[id]));
+                return this._getDraftRuntime().isSameRecoveryRecords(a, b);
             },
 
             /**
@@ -302,15 +215,7 @@
              * @returns {boolean}
              */
             isSameRecoveryData(a, b) {
-                if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
-                for (let i = 0; i < a.length; i++) {
-                    const left = a[i];
-                    const right = b[i];
-                    if (!left || !right) return false;
-                    if (left.id !== right.id || left.name !== right.name || left.subject !== right.subject) return false;
-                    if (!this.isSameRecoveryRecords(left.records, right.records)) return false;
-                }
-                return true;
+                return this._getDraftRuntime().isSameRecoveryData(a, b);
             },
 
             /**
@@ -320,13 +225,7 @@
              * @returns {boolean}
              */
             isSameRecoveryState(a, b) {
-                if (!a || !b) return false;
-                if (!Array.isArray(a.list) || !Array.isArray(b.list) || a.list.length !== b.list.length) return false;
-                if (a.list.some((item, index) => item !== b.list[index])) return false;
-                if (!this.isSameRecoveryData(a.data, b.data)) return false;
-                const curA = Number.isFinite(a.curId) ? a.curId : null;
-                const curB = Number.isFinite(b.curId) ? b.curId : null;
-                return curA === curB && this.normalizePrefs(a.prefs).cardDoneColor === this.normalizePrefs(b.prefs).cardDoneColor;
+                return this._getDraftRuntime().isSameRecoveryState(a, b);
             },
 
             /**
@@ -334,29 +233,7 @@
              * @returns {boolean} 是否成功应用
              */
             applyRecoveryDraft() {
-                if (this._usePersistenceService) {
-                    const success = PersistenceService.applyRecoveryDraft();
-                    if (success) {
-                        // 同步服务层数据回 State
-                        if (this._useRosterService) this.list = RosterService.getRawList();
-                        if (this._useAssignmentService) {
-                            this.data = AssignmentService.getAll();
-                            this.curId = AssignmentService.getCurrentId();
-                        }
-                        if (this._usePreferenceService) {
-                            this.prefs = PreferenceService.getPrefs();
-                            this.animations = PreferenceService.getAnimations();
-                        }
-                    }
-                    return success;
-                } else {
-                    const draft = this.getRecoveryDraft();
-                    if (!draft) return false;
-                    const current = { list: this.list, data: this.data, prefs: this.prefs, curId: this.curId };
-                    if (this.isSameRecoveryState(draft, current)) return false;
-                    Object.assign(this, { list: draft.list, data: draft.data, prefs: draft.prefs, curId: Number.isFinite(draft.curId) ? draft.curId : this.curId });
-                    return true;
-                }
+                return this._getDraftRuntime().applyRecoveryDraft();
             },
 
             /**
@@ -385,35 +262,17 @@
             },
 
             saveRecoveryDraft() {
-                if (this._usePersistenceService) {
-                    return PersistenceService.saveDraft();
-                } else {
-                    clearTimeout(this._draftTimer);
-                    this._draftTimer = 0;
-                    this._draftDirty = false;
-                    const snapshot = this.getRecoverySnapshot();
-                    if (this._lastDraftSnapshot && this.isSameRecoveryState(snapshot, this._lastDraftSnapshot)) return false;
-                    this._lastDraftSnapshot = this.cloneRecoveryState(snapshot);
-                    LS.set(KEYS.DRAFT, { version: 1, updatedAt: Date.now(), ...snapshot });
-                    return true;
-                }
+                return this._getDraftRuntime().saveRecoveryDraft();
             },
 
             sanitizeAsgIds() {
-                const used = new Set(), cleaned = [];
-                let repaired = false;
-                this.data.forEach(item => {
-                    const asg = this.normalizeAsg(item);
-                    if (!asg || asg._invalidId) { repaired = true; return; }
-                    if (used.has(asg.id)) {
-                        repaired = true;
-                        asg.id = IdGenerator.generateUnique(id => used.has(id));
-                    }
-                    used.add(asg.id);
-                    cleaned.push(asg);
+                const result = StateCore.sanitizeAsgIds({
+                    data: this.data,
+                    normalizeAsg: value => this.normalizeAsg(value),
+                    createUniqueId: exists => IdGenerator.generateUnique(exists)
                 });
-                this.data = cleaned;
-                return repaired;
+                this.data = result.data;
+                return result.repaired;
             },
 
             /**
@@ -422,14 +281,7 @@
              * @returns {Object|null} 规范化后的任务对象
              */
             normalizeAsg(asg) {
-                if (!asg || typeof asg !== 'object') return null;
-                const name = String(asg.name || '').trim();
-                const subject = String(asg.subject || '').trim() || (/英语/.test(name) ? '英语' : '其他');
-                const id = Number(asg.id);
-                const invalidId = !Number.isFinite(id);
-                const normalized = { id: invalidId ? null : id, name: name || '未命名任务', subject, records: asg.records && typeof asg.records === 'object' ? asg.records : {} };
-                if (invalidId) normalized._invalidId = true;
-                return normalized;
+                return StateCore.normalizeAsg(asg);
             },
 
             /**
@@ -438,22 +290,21 @@
              * @returns {Object|null} 规范化后的任务对象
              */
             normalizeAsgInPlace(asg) {
-                const n = this.normalizeAsg(asg);
-                if (!n) return null;
-                if (asg && typeof asg === 'object') Object.assign(asg, n);
-                return n;
+                return StateCore.normalizeAsgInPlace(asg);
             },
 
             /**
              * 使派生数据失效，清除缓存
              */
             invalidateDerived() {
-                if (this._useCacheService) {
-                    CacheService.invalidateAll();
-                } else {
-                    this._cacheVersion++;
-                    this._metricsCache.clear();
-                }
+                const next = StateCore.invalidateDerived({
+                    useCacheService: this._useCacheService,
+                    cacheService: CacheServiceRef,
+                    cacheVersion: this._cacheVersion,
+                    metricsCache: this._metricsCache
+                });
+                this._cacheVersion = next.cacheVersion;
+                this._metricsCache = next.metricsCache;
             },
 
             /**
@@ -463,9 +314,14 @@
              * @param {string[]} options.ids - 需要重绘的学生ID列表
              */
             markGridDirty({ full = false, ids = [] } = {}) {
-                if (full) { this._gridDirtyFull = true; this._gridDirtyStudentIds.clear(); return; }
-                if (this._gridDirtyFull) return;
-                ids.forEach(id => { const key = String(id || '').trim(); if (key) this._gridDirtyStudentIds.add(key); });
+                const next = StateCore.markGridDirty({
+                    currentFull: this._gridDirtyFull,
+                    currentIds: this._gridDirtyStudentIds,
+                    full,
+                    ids
+                });
+                this._gridDirtyFull = next.full;
+                this._gridDirtyStudentIds = next.ids;
             },
 
             /**
@@ -473,38 +329,82 @@
              * @returns {Object} 脏标记状态
              */
             consumeGridDirty() {
-                const dirty = { full: this._gridDirtyFull, ids: this._gridDirtyFull ? [] : Array.from(this._gridDirtyStudentIds) };
-                this._gridDirtyFull = false;
-                this._gridDirtyStudentIds.clear();
-                return dirty;
+                const result = StateCore.consumeGridDirty({
+                    full: this._gridDirtyFull,
+                    ids: this._gridDirtyStudentIds
+                });
+                this._gridDirtyFull = result.next.full;
+                this._gridDirtyStudentIds = result.next.ids;
+                return result.dirty;
+            },
+
+            _getPersistenceRuntime() {
+                return StatePersistence.createPersistenceRuntime({
+                    usePersistenceService: this._usePersistenceService,
+                    persistenceService: PersistenceServiceRef,
+                    persistTimer: () => this._persistTimer,
+                    setPersistTimer: value => { this._persistTimer = value; },
+                    dirtyData: () => this._dirtyData,
+                    dirtyList: () => this._dirtyList,
+                    setDirtyData: value => { this._dirtyData = value; },
+                    setDirtyList: value => { this._dirtyList = value; },
+                    LS,
+                    KEYS,
+                    data: () => this.data,
+                    list: () => this.list,
+                    flushRecoveryDraft: () => this.flushRecoveryDraft(),
+                    normalizePrefs: value => this.normalizePrefs(value),
+                    prefs: () => this.prefs,
+                    setPrefs: value => { this.prefs = value; },
+                    queueRecoveryDraft: () => this.queueRecoveryDraft(),
+                    applyCardColor: () => this.applyCardColor(),
+                    animations: () => this.animations,
+                    applyAnim: () => this.applyAnim(),
+                    sanitizeAsgIds: () => this.sanitizeAsgIds(),
+                    ensureAsgIndex: () => this._ensureAsgIndex(),
+                    findAsgById: id => this.asgMap.get(id) || this.data.find(item => item.id === id),
+                    normalizeAsgInPlace: asg => this.normalizeAsgInPlace(asg),
+                    runInvalidateDerived: () => this.invalidateDerived(),
+                    onAsgListChanged: () => {
+                        this._asgListVersion++;
+                        this._metricsCache.clear();
+                    },
+                    isViewReady: () => this.view.isReady(),
+                    renderView: () => this.view.render()
+                });
             },
 
             _queuePersist() { 
-                if (this._usePersistenceService) {
-                    PersistenceService.queuePersist();
-                } else {
-                    clearTimeout(this._persistTimer); 
-                    this._persistTimer = setTimeout(() => this._flushPersist(), 300); 
-                }
+                this._getPersistenceRuntime().queuePersist(300);
             },
             queuePersist() { this._queuePersist(); }, // Maintain API
 
             _flushPersist({ includeDraft = false } = {}) {
-                if (this._usePersistenceService) {
-                    PersistenceService.markDirtyData(this._dirtyData);
-                    PersistenceService.markDirtyList(this._dirtyList);
-                    PersistenceService.flushPersist({ includeDraft });
-                    this._dirtyData = false;
-                    this._dirtyList = false;
-                } else {
-                    clearTimeout(this._persistTimer);
-                    this._persistTimer = 0;
-                    if (this._dirtyData) { LS.set(KEYS.DATA, this.data); this._dirtyData = false; }
-                    if (this._dirtyList) { LS.set(KEYS.LIST, this.list); this._dirtyList = false; }
-                    if (includeDraft) this.flushRecoveryDraft();
-                }
+                this._getPersistenceRuntime().flushPersist({ includeDraft });
             },
             flushPersist(options) { this._flushPersist(options); }, // Maintain API
+
+            _getRosterRuntime() {
+                return StateRoster.createRosterRuntime({
+                    useRosterService: this._useRosterService,
+                    rosterService: RosterServiceRef,
+                    list: this.list,
+                    previousRosterVersion: this._rosterVersion
+                });
+            },
+
+            _getUiRuntime() {
+                return StateUi.createUiRuntime({
+                    documentRef: document,
+                    getById: id => $(id),
+                    ColorUtil,
+                    mode: () => this.mode,
+                    setMode: value => { this.mode = value; },
+                    scoring: () => this.scoring,
+                    animations: () => this.animations,
+                    prefs: () => this.prefs
+                });
+            },
 
             /**
              * 解析名单行
@@ -512,15 +412,7 @@
              * @returns {Object} 解析后的学生对象 {id, name, noEnglish}
              */
             parseRosterLine(rawLine) {
-                if (this._useRosterService) {
-                    return RosterService.parseLine(rawLine);
-                }
-                const lineText = String(rawLine ?? '').trim();
-                const noEnRegex = /\s*#(?:非英语|非英|no-en|noeng|not-en)\s*$/i;
-                const noEnglish = noEnRegex.test(lineText);
-                const line = lineText.replace(noEnRegex, '').trim();
-                const i = line.indexOf(' ');
-                return i === -1 ? { id: line, name: '', noEnglish } : { id: line.slice(0, i), name: line.slice(i + 1), noEnglish };
+                return this._getRosterRuntime().parseRosterLine(rawLine);
             },
 
             /**
@@ -529,12 +421,7 @@
              * @returns {string[]} 重复的ID列表
              */
             getDuplicateIds(ids) {
-                if (this._useRosterService) {
-                    return RosterService.getDuplicateIds?.(ids) ?? [];
-                }
-                const seen = new Set(), dup = new Set();
-                ids.forEach(id => { const key = String(id || '').trim(); if (!key) return; if (seen.has(key)) dup.add(key); seen.add(key); });
-                return Array.from(dup);
+                return this._getRosterRuntime().getDuplicateIds(ids);
             },
 
             /**
@@ -544,12 +431,7 @@
              * @throws {Error} 存在重复ID时抛出错误
              */
             assertUniqueRosterIds(ids, sourceLabel = '名单') {
-                if (this._useRosterService) {
-                    RosterService.assertUniqueIds?.(ids, sourceLabel);
-                    return;
-                }
-                const dup = this.getDuplicateIds(ids);
-                if (dup.length) throw new Error(`${sourceLabel}存在重复学号: ${dup.join('、')}`);
+                this._getRosterRuntime().assertUniqueRosterIds(ids, sourceLabel);
             },
 
             /**
@@ -558,19 +440,11 @@
              * @returns {void}
              */
             parseRoster() {
-                if (this._useRosterService) {
-                    const result = RosterService.parse(this.list);
-                    this.roster = RosterService.getAllStudents();
-                    this.rosterIndexMap = new Map(this.roster.map((stu, index) => [stu.id, index]));
-                    this.noEnglishIds = this.roster.filter(stu => stu.noEnglish).map(stu => stu.id);
-                    this._rosterVersion = RosterService.getVersion();
-                } else {
-                    this.roster = this.list.map(l => this.parseRosterLine(l)).filter(s => s.id);
-                    this.assertUniqueRosterIds(this.roster.map(stu => stu.id), '名单');
-                    this.rosterIndexMap = new Map(this.roster.map((stu, index) => [stu.id, index]));
-                    this.noEnglishIds = this.roster.filter(stu => stu.noEnglish).map(stu => stu.id);
-                    this._rosterVersion++;
-                }
+                const parsed = this._getRosterRuntime().parseRoster();
+                this.roster = parsed.roster;
+                this.rosterIndexMap = parsed.rosterIndexMap;
+                this.noEnglishIds = parsed.noEnglishIds;
+                this._rosterVersion = parsed.rosterVersion;
                 this.invalidateDerived();
                 this.markGridDirty({ full: true });
             },
@@ -589,79 +463,55 @@
              * @returns {void}
              */
             save({ render = true, immediate = false, dirtyData = true, dirtyList = false, asgListChanged = false, normalizeMode = 'all', targetAsgId = null, invalidateDerived = true } = {}) {
-                if (normalizeMode === 'all') { this.sanitizeAsgIds(); this._ensureAsgIndex(); }
-                else if (normalizeMode === 'target' && targetAsgId != null) {
-                    const asg = this.asgMap.get(targetAsgId) || this.data.find(item => item.id === targetAsgId);
-                    if (asg) this.normalizeAsgInPlace(asg);
-                } else if (normalizeMode === 'none') { this._ensureAsgIndex(); }
-
-                if (invalidateDerived) this.invalidateDerived();
-                if (dirtyData) this._dirtyData = true;
-                if (dirtyList) this._dirtyList = true;
-                if (asgListChanged) {
-                    this._asgListVersion++;
-                    this._metricsCache.clear();
-                }
-                if (dirtyData || dirtyList) this.queueRecoveryDraft();
-                if (immediate) this._flushPersist({ includeDraft: true }); else this._queuePersist();
-                if (render && this.view.isReady()) this.view.render();
+                this._getPersistenceRuntime().save({
+                    normalizeMode,
+                    targetAsgId,
+                    invalidateDerived,
+                    dirtyData,
+                    dirtyList,
+                    asgListChanged,
+                    immediate,
+                    render,
+                    flushPersist: options => this._flushPersist(options),
+                    queuePersist: () => this._queuePersist()
+                });
             },
 
-            saveAnim() { LS.set(KEYS.ANIM, this.animations); this.applyAnim(); },
+            saveAnim() {
+                this._getPersistenceRuntime().saveAnim();
+            },
             savePrefs() {
-                this.prefs = this.normalizePrefs(this.prefs);
-                this.queueRecoveryDraft();
-                LS.set(KEYS.PREFS, this.prefs);
-                this.applyCardColor();
+                this._getPersistenceRuntime().savePrefs();
             },
 
             applyAnim() {
-                document.body.classList.toggle('no-animations', !this.animations);
-                const sAnim = $('statusAnim'); if (sAnim) sAnim.textContent = this.animations ? '开' : '关';
+                this._getUiRuntime().applyAnim();
             },
 
             applyCardColor() {
-                const base = ColorUtil.normalizeHex(this.prefs?.cardDoneColor, '#68c490');
-                const [s, e, b] = [0.08, 0.14, 0.2].map(r => ColorUtil.mix(base, r === 0.08 ? '#ffffff' : '#10261a', r));
-                const lum = ColorUtil.luminance(base);
-                const badgeBg = lum > 0.35 ? ColorUtil.mix('#111111', '#ffffff', 0.12) : ColorUtil.mix('#ffffff', '#111111', 0.08);
-                const badgeText = lum > 0.35 ? 'rgba(255,255,255,0.95)' : 'rgba(17,17,17,0.92)';
-                const d = document.documentElement.style;
-                d.setProperty('--done-card-start', s); d.setProperty('--done-card-end', e); d.setProperty('--done-card-border', b);
-                d.setProperty('--done-card-shadow', ColorUtil.withAlpha(base, 0.22));
-                d.setProperty('--done-card-press-shadow', ColorUtil.withAlpha(base, 0.32));
-                d.setProperty('--done-card-badge', badgeBg);
-                d.setProperty('--done-card-badge-text', badgeText);
+                this._getUiRuntime().applyCardColor();
             },
 
             applyScoring() {
-                const sScore = $('statusScore'); if (sScore) sScore.textContent = this.scoring ? '开' : '关';
-                const btnScore = $('btnScore'); if (btnScore) btnScore.classList.toggle('active', !!this.scoring);
+                this._getUiRuntime().applyScoring();
             },
 
             applyViewMode() {
-                const showNames = this.mode === 'name';
-                document.body.classList.toggle('mode-names', showNames);
-                const sView = $('statusView'); if (sView) sView.textContent = showNames ? '开' : '关';
-                const btnView = $('btnView'); if (btnView) btnView.classList.toggle('active', showNames);
+                this._getUiRuntime().applyViewMode();
             },
 
             toggleViewMode() {
-                this.mode = this.mode === 'id' ? 'name' : 'id';
+                this._getUiRuntime().toggleViewMode();
                 this.applyViewMode();
             },
 
             invertCurrentSelection() {
-                const asg = this.cur;
-                if (!asg) return;
-                const records = asg.records || (asg.records = {});
-                for (const stu of this.roster) {
-                    if (!this.isStuIncluded(asg, stu)) continue;
-                    const id = stu.id;
-                    const nextDone = !records[id]?.done;
-                    records[id] = { ...(records[id] || {}), done: nextDone };
-                    if (!records[id].done && (records[id].score == null || records[id].score === '')) delete records[id];
-                }
+                const changed = StateAssignment.invertCurrentSelection({
+                    asg: this.cur,
+                    roster: this.roster,
+                    isStuIncluded: (asg, stu) => this.isStuIncluded(asg, stu)
+                });
+                if (!changed) return;
                 this.invalidateDerived();
                 this.markGridDirty({ full: true });
                 this.queueRecoveryDraft();
@@ -671,332 +521,161 @@
 
             get cur() { return this.asgMap.get(this.curId) || this.data[0]; },
 
+            _getAssignmentRuntime() {
+                return StateAssignment.createAssignmentRuntime({
+                    useAssignmentService: this._useAssignmentService,
+                    assignmentService: AssignmentServiceRef,
+                    data: this.data,
+                    asgMap: this.asgMap,
+                    curId: this.curId,
+                    normalizeAsg: value => this.normalizeAsg(value),
+                    createUniqueId: exists => IdGenerator.generateUnique(exists)
+                });
+            },
+
             addAsg(n) {
-                if (this._useAssignmentService) {
-                    const newAsg = AssignmentService.create(n);
-                    this.data = AssignmentService.getAll();
-                    this._ensureAsgIndex();
-                    this.curId = AssignmentService.getCurrentId();
-                    this.markGridDirty({ full: true });
-                    this.save({ asgListChanged: true, normalizeMode: 'none', invalidateDerived: false });
-                } else {
-                    const id = IdGenerator.generateUnique(id => this.asgMap.has(id));
-                    this.data.push(this.normalizeAsg({ id, name: (n || '').trim() || '未命名任务', subject: '英语', records: {} }));
-                    this._ensureAsgIndex();
-                    this.curId = id;
-                    this.markGridDirty({ full: true });
-                    this.save({ asgListChanged: true, normalizeMode: 'none', invalidateDerived: false });
-                }
+                const result = this._getAssignmentRuntime().addAsg(n);
+                if (!result.changed) return;
+                this.data = result.data;
+                this._ensureAsgIndex();
+                this.curId = result.curId;
+                this.markGridDirty({ full: true });
+                this.save({ asgListChanged: true, normalizeMode: 'none', invalidateDerived: false });
             },
 
             selectAsg(id) {
-                if (this._useAssignmentService) {
-                    if (!AssignmentService.has(id)) {
-                        return;
-                    }
-                    AssignmentService.select(id);
-                    this.curId = AssignmentService.getCurrentId();
-                } else {
-                    if (!this.asgMap.has(id)) {
-                        return;
-                    }
-                    this.curId = id;
-                }
+                const result = this._getAssignmentRuntime().selectAsg(id);
+                if (!result.changed) return;
+                this.curId = result.curId;
                 this.markGridDirty({ full: true });
                 this.view.render();
             },
 
             renameAsg(id, name) {
-                if (this._useAssignmentService) {
-                    const success = AssignmentService.rename(id, name);
-                    if (success) {
-                        this.data = AssignmentService.getAll();
-                        this._ensureAsgIndex();
-                        this.save({ asgListChanged: true, normalizeMode: 'target', targetAsgId: id, invalidateDerived: false });
-                    }
-                    return success;
-                } else {
-                    const asg = this.asgMap.get(id);
-                    if (!asg || !(name || '').trim()) return false;
-                    asg.name = name.trim();
-                    this.save({ asgListChanged: true, normalizeMode: 'target', targetAsgId: id, invalidateDerived: false });
-                    return true;
-                }
+                const result = this._getAssignmentRuntime().renameAsg(id, name);
+                if (!result.changed) return false;
+                this.data = result.data;
+                this._ensureAsgIndex();
+                this.save({ asgListChanged: true, normalizeMode: 'target', targetAsgId: id, invalidateDerived: false });
+                return true;
             },
 
             updateAsgMeta(id, payload = {}) {
-                if (this._useAssignmentService) {
-                    const success = AssignmentService.updateMeta(id, payload);
-                    if (success) {
-                        this.data = AssignmentService.getAll();
-                        this._ensureAsgIndex();
-                        const asg = this.asgMap.get(id);
-                        const prevSub = this.getAsgSubject(asg);
-                        if (id === this.curId && prevSub !== (payload.subject ?? asg?.subject)) this.markGridDirty({ full: true });
-                        this.save({ asgListChanged: true, normalizeMode: 'target', targetAsgId: id, invalidateDerived: true });
-                    }
-                    return success;
-                } else {
-                    const asg = this.asgMap.get(id);
-                    if (!asg) return false;
-                    const safeName = String(payload.name ?? asg.name).trim();
-                    const safeSubject = String(payload.subject ?? asg.subject ?? '').trim() || '英语';
-                    if (!safeName) return false;
-                    const prevSub = this.getAsgSubject(asg);
-                    Object.assign(asg, { name: safeName, subject: safeSubject });
-                    if (id === this.curId && prevSub !== safeSubject) this.markGridDirty({ full: true });
-                    this.save({ asgListChanged: true, normalizeMode: 'target', targetAsgId: id, invalidateDerived: prevSub !== safeSubject });
-                    return true;
-                }
+                const result = this._getAssignmentRuntime().updateAsgMeta(id, payload);
+                if (!result.changed) return false;
+                this.data = result.data;
+                this._ensureAsgIndex();
+                if (id === this.curId && result.prevSubject !== result.nextSubject) this.markGridDirty({ full: true });
+                this.save({ asgListChanged: true, normalizeMode: 'target', targetAsgId: id, invalidateDerived: result.prevSubject !== result.nextSubject });
+                return true;
             },
 
             removeAsg(id) {
-                if (this.data.length <= 1) return false;
-                if (this._useAssignmentService) {
-                    const success = AssignmentService.remove(id);
-                    if (success) {
-                        this.data = AssignmentService.getAll();
-                        this._ensureAsgIndex();
-                        this.curId = AssignmentService.getCurrentId();
-                        this.markGridDirty({ full: true });
-                        this.save({ asgListChanged: true, normalizeMode: 'none', invalidateDerived: false });
-                    }
-                    return success;
-                } else {
-                    const idx = this.data.findIndex(a => a.id === id);
-                    if (idx === -1) {
-                        return false;
-                    }
-                    this.data.splice(idx, 1);
-                    if (this.curId === id) this.curId = (this.data[Math.max(0, idx - 1)] || this.data[0]).id;
-                    this._ensureAsgIndex();
-                    this.markGridDirty({ full: true });
-                    this.save({ asgListChanged: true, normalizeMode: 'none', invalidateDerived: false });
-                    return true;
-                }
+                const result = this._getAssignmentRuntime().removeAsg(id);
+                if (!result.changed) return false;
+                this.data = result.data;
+                this._ensureAsgIndex();
+                this.curId = result.curId;
+                this.markGridDirty({ full: true });
+                this.save({ asgListChanged: true, normalizeMode: 'none', invalidateDerived: false });
+                return true;
             },
 
             getAsgSubject(asg) { 
-                if (this._useAssignmentService && asg) {
-                    return AssignmentService.getSubject(asg);
-                }
-                return String(asg?.subject || '').trim() || (/英语/.test(asg?.name || '') ? '英语' : '其他'); 
+                return this._getAssignmentRuntime().getAsgSubject(asg);
             },
             isEnglishAsg(asg) { 
-                if (this._useAssignmentService && asg) {
-                    return AssignmentService.isEnglish(asg);
-                }
-                return this.getAsgSubject(asg) === '英语'; 
+                return this._getAssignmentRuntime().isEnglishAsg(asg);
             },
-            isStuIncluded(asg, stu) { return !(this.isEnglishAsg(asg) && stu.noEnglish); },
+            isStuIncluded(asg, stu) {
+                return this._getAssignmentRuntime().isStuIncluded(asg, stu);
+            },
+
+            _getTrendRuntime() {
+                const cache = StateTrend.createMetricsCacheAdapter({
+                    useCacheService: this._useCacheService,
+                    cacheService: CacheServiceRef,
+                    metricsCache: this._metricsCache,
+                    cacheVersion: this._cacheVersion,
+                    maxMetricsCacheSize: CACHE_CONFIG.MAX_METRICS_CACHE_SIZE || 50
+                });
+                return StateTrend.createTrendRuntime({
+                    roster: this.roster,
+                    getAsgSubject: asg => this.getAsgSubject(asg),
+                    isStuIncluded: (asg, stu) => this.isStuIncluded(asg, stu),
+                    parseScore: value => this.parseNumericScore(value),
+                    classifyTrend: entries => this.classifyScoreTrend(entries),
+                    buildKey: timeline => this.buildTrendTimelineKey(timeline),
+                    cache
+                });
+            },
 
             getAsgMetrics(asg) {
-                if (!asg) return { total: 0, done: 0 };
-                
-                if (this._useCacheService) {
-                    const cached = CacheService.get(CacheService.CacheNames?.METRICS || 'metrics', asg.id);
-                    if (cached && cached.version === CacheService.getVersion()) return cached.metrics;
-                    
-                    let total = 0, done = 0;
-                    for (const stu of this.roster) {
-                        if (!this.isStuIncluded(asg, stu)) continue;
-                        total++; if (asg.records?.[stu.id]?.done) done++;
-                    }
-                    const metrics = { total, done };
-                    CacheService.set(CacheService.CacheNames?.METRICS || 'metrics', asg.id, { version: CacheService.getVersion(), metrics });
-                    return metrics;
-                } else {
-                    const cached = this._metricsCache.get(asg.id);
-                    if (cached && cached.version === this._cacheVersion) return cached.metrics;
-                    let total = 0, done = 0;
-                    for (const stu of this.roster) {
-                        if (!this.isStuIncluded(asg, stu)) continue;
-                        total++; if (asg.records?.[stu.id]?.done) done++;
-                    }
-                    const metrics = { total, done };
-                    this._metricsCache.set(asg.id, { version: this._cacheVersion, metrics });
-                    return metrics;
-                }
+                return this._getTrendRuntime().getAsgMetrics(asg);
             },
 
             getAsgTotalCount(asg) { return this.getAsgMetrics(asg).total; },
             getAsgDoneCount(asg) { return this.getAsgMetrics(asg).done; },
 
             parseNumericScore(value) {
-                if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-                const text = String(value ?? '').trim();
-                if (!text) return null;
-                return /^-?\d+(?:\.\d+)?$/.test(text) ? Number(text) : null;
+                return StateTrend.parseNumericScore(value);
             },
 
             buildTrendTimelineKey(timeline) {
-                return timeline.map(item => `${item.asgId}:${item.label}:${item.score ?? ''}:${item.included ? 1 : 0}`).join(';');
+                return StateTrend.buildTrendTimelineKey(timeline);
             },
 
             getQuizTrendAssignments() {
-                const quizzes = this.data.filter(asg => /小测/.test(String(asg?.name || '')));
-                return quizzes.length ? quizzes : this.data.slice();
+                return StateTrend.getQuizTrendAssignments(this.data);
             },
 
             getAsgRange(startId, endId, source = this.data) {
-                if (!source.length) return [];
-                const startIndex = source.findIndex(asg => asg.id === startId);
-                const endIndex = source.findIndex(asg => asg.id === endId);
-                if (startIndex === -1 && endIndex === -1) return source.slice();
-                const safeStart = startIndex === -1 ? 0 : startIndex;
-                const safeEnd = endIndex === -1 ? source.length - 1 : endIndex;
-                const [from, to] = safeStart <= safeEnd ? [safeStart, safeEnd] : [safeEnd, safeStart];
-                return source.slice(from, to + 1);
+                return StateTrend.getAsgRange({ startId, endId, source });
             },
 
             classifyScoreTrend(entries) {
-                if (!entries.length) return '暂无成绩';
-                if (entries.length === 1) return '单次记录';
-                const first = entries[0].score;
-                const latest = entries[entries.length - 1].score;
-                let min = first;
-                let max = first;
-                for (let i = 1; i < entries.length; i++) {
-                    const score = entries[i].score;
-                    if (score < min) min = score;
-                    if (score > max) max = score;
-                }
-                const delta = latest - first;
-                const span = max - min;
-                if (Math.abs(delta) <= 2 && span <= 4) return '稳定';
-                if (delta >= 5) return '上升';
-                if (delta <= -5) return '下降';
-                return '波动';
+                return StateTrend.classifyScoreTrend(entries);
             },
 
             getScoreRangeReport(startId, endId, source = this.data) {
-                const assignments = this.getAsgRange(startId, endId, source);
-                
-                if (this._useCacheService) {
-                    const cacheKey = `range:${CacheService.getVersion()}|${this._rosterVersion}|${this._asgListVersion}|${assignments.map(asg => asg.id).join(',')}`;
-                    const cached = CacheService.get(CacheService.CacheNames?.METRICS || 'metrics', cacheKey);
-                    if (cached && cached.version === CacheService.getVersion()) return cached.report;
-
-                    let scoredStudentCount = 0;
-                    const students = this.roster.map(stu => {
-                        const studentStats = this._calculateStudentStats(stu, assignments);
-                        if (studentStats.stats.entries.length) scoredStudentCount++;
-                        return {
-                            id: stu.id,
-                            name: stu.name,
-                            ...studentStats
-                        };
-                    });
-                    const report = {
-                        assignments: assignments.map(asg => ({ id: asg.id, name: asg.name, subject: this.getAsgSubject(asg) })),
-                        students,
-                        scoredStudentCount
-                    };
-                    CacheService.set(CacheService.CacheNames?.METRICS || 'metrics', cacheKey, { version: CacheService.getVersion(), report });
-                    return report;
-                } else {
-                    const cacheKey = `range:${this._cacheVersion}|${this._rosterVersion}|${this._asgListVersion}|${assignments.map(asg => asg.id).join(',')}`;
-                    const cached = this._metricsCache.get(cacheKey);
-                    if (cached && cached.version === this._cacheVersion) return cached.report;
-
-                    let scoredStudentCount = 0;
-                    const students = this.roster.map(stu => {
-                        const studentStats = this._calculateStudentStats(stu, assignments);
-                        if (studentStats.stats.entries.length) scoredStudentCount++;
-                        return {
-                            id: stu.id,
-                            name: stu.name,
-                            ...studentStats
-                        };
-                    });
-                    const report = {
-                        assignments: assignments.map(asg => ({ id: asg.id, name: asg.name, subject: this.getAsgSubject(asg) })),
-                        students,
-                        scoredStudentCount
-                    };
-                    this._setMetricsCache(cacheKey, report);
-                    return report;
-                }
+                return this._getTrendRuntime().getScoreRangeReport({
+                    startId,
+                    endId,
+                    source,
+                    rosterVersion: this._rosterVersion,
+                    asgListVersion: this._asgListVersion
+                });
             },
 
             _calculateStudentStats(stu, assignments) {
-                const timeline = [];
-                const entries = [];
-                let includedCount = 0;
-                let totalScore = 0;
-                let first = null;
-                let latest = null;
-                let best = null;
-                let worst = null;
-
-                assignments.forEach(asg => {
-                    if (!this.isStuIncluded(asg, stu)) {
-                        timeline.push({ asgId: asg.id, label: asg.name, score: null, rawScore: '', included: false });
-                        return;
-                    }
-                    includedCount++;
-                    const rawScore = asg.records?.[stu.id]?.score ?? '';
-                    const score = this.parseNumericScore(rawScore);
-                    const item = { asgId: asg.id, label: asg.name, score, rawScore, included: true };
-                    timeline.push(item);
-                    if (score == null) return;
-                    entries.push(item);
-                    totalScore += score;
-                    if (first == null) first = score;
-                    latest = score;
-                    best = best == null ? score : Math.max(best, score);
-                    worst = worst == null ? score : Math.min(worst, score);
-                });
-
-                const stats = {
-                    avg: entries.length ? Number((totalScore / entries.length).toFixed(1)) : null,
-                    latest,
-                    best,
-                    worst,
-                    delta: entries.length >= 2 ? Number((latest - first).toFixed(1)) : null,
-                    coverage: `${entries.length}/${includedCount}`,
-                    trend: this.classifyScoreTrend(entries),
-                    entries
-                };
-                const timelineKey = this.buildTrendTimelineKey(timeline);
-                return {
-                    entries,
-                    timeline,
-                    stats,
-                    searchText: `${stu.id} ${stu.name}`,
-                    timelineKey,
-                    renderKey: `${stu.id}|${stu.name}|${stats.coverage}|${stats.avg ?? ''}|${stats.latest ?? ''}|${stats.best ?? ''}|${stats.delta ?? ''}|${stats.trend}|${timelineKey}`
-                };
-            },
-
-            _setMetricsCache(key, report) {
-                if (this._useCacheService) {
-                    CacheService.set(CacheService.CacheNames?.METRICS || 'metrics', key, { version: CacheService.getVersion(), report });
-                } else {
-                    if (this._metricsCache.size >= (CACHE_CONFIG.MAX_METRICS_CACHE_SIZE || 50)) {
-                        const firstKey = this._metricsCache.keys().next().value;
-                        this._metricsCache.delete(firstKey);
-                    }
-                    this._metricsCache.set(key, { version: this._cacheVersion, report });
-                }
+                return this._getTrendRuntime().calculateStudentStats(stu, assignments);
             },
 
             updRec(id, val, meta = {}) {
-                const asg = this.cur; if (!asg) return;
-                const prevRecord = asg.records[id] ? { ...asg.records[id] } : null;
-                const prevDone = !!prevRecord?.done;
-                const r = asg.records;
-                r[id] = { ...r[id], ...val };
-                if (!r[id].done && (r[id].score == null || r[id].score === '')) delete r[id];
-                const nextRecord = r[id] ? { ...r[id] } : null;
+                const asg = this.cur;
+                const result = this._getAssignmentRuntime().updRec(asg, id, val);
+                if (!result.changed) return;
                 this.invalidateDerived();
                 this.markGridDirty({ ids: [id] });
                 this.queueRecoveryDraft();
                 this._queuePersist();
                 this.view.renderStudent(id);
-                if (prevDone !== !!asg.records[id]?.done) this.view.renderProgress(this.getAsgDoneCount(asg), this.getAsgTotalCount(asg));
+                if (result.prevDone !== result.nextDone) this.view.renderProgress(this.getAsgDoneCount(asg), this.getAsgTotalCount(asg));
             }
         };
+
+            ServicesBridge = StateInit.createServicesBridge({
+                getServicesInitialized: () => servicesInitialized,
+                setServicesInitialized: value => { servicesInitialized = value; },
+                getState: () => State,
+                rosterService: RosterServiceRef,
+                assignmentService: AssignmentServiceRef,
+                preferenceService: PreferenceServiceRef,
+                persistenceService: PersistenceServiceRef,
+                warn: (stage, error) => {
+                    console.warn(`Services bridge ${stage} failed, falling back to legacy state`, error);
+                }
+            });
 
             const UI = {
                 isReady: false,

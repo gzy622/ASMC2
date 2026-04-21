@@ -179,6 +179,102 @@ describe('Trend (趋势分析)', () => {
         });
     });
 
+    describe('统一缓存适配器', () => {
+        it('应该统一本地缓存读写并在超限时淘汰最早条目', () => {
+            const metricsCache = new Map();
+            const adapter = globalThis.__AC2_INTERNALS__.stateTrend.createMetricsCacheAdapter({
+                useCacheService: false,
+                metricsCache,
+                cacheVersion: 3,
+                maxMetricsCacheSize: 2
+            });
+            const metrics = { total: 3, done: 2 };
+            const report = { assignments: [], students: [], scoredStudentCount: 0 };
+            const nextReport = { assignments: [{ id: 2, name: '任务2' }], students: [], scoredStudentCount: 0 };
+
+            adapter.set('asg:1', metrics);
+            adapter.set('range:1', report);
+
+            expect(adapter.get('asg:1')).toBe(metrics);
+            expect(adapter.get('range:1')).toBe(report);
+            expect(metricsCache.get('asg:1')).toEqual({ version: 3, value: metrics });
+            expect(metricsCache.get('range:1')).toEqual({ version: 3, value: report });
+
+            adapter.set('range:2', nextReport);
+
+            expect(metricsCache.has('asg:1')).toBe(false);
+            expect(adapter.get('range:1')).toBe(report);
+            expect(adapter.get('range:2')).toBe(nextReport);
+        });
+
+        it('应该统一转调 CacheService 缓存接口', () => {
+            const store = new Map();
+            const cacheService = {
+                CacheNames: { METRICS: 'metrics' },
+                getVersion: vi.fn(() => 7),
+                get: vi.fn((name, key) => store.get(`${name}:${key}`)),
+                set: vi.fn((name, key, value) => store.set(`${name}:${key}`, value))
+            };
+            const adapter = globalThis.__AC2_INTERNALS__.stateTrend.createMetricsCacheAdapter({
+                useCacheService: true,
+                cacheService,
+                metricsCache: new Map(),
+                cacheVersion: 1,
+                maxMetricsCacheSize: 2
+            });
+            const metrics = { total: 1, done: 1 };
+
+            expect(adapter.get('asg:1')).toBeNull();
+
+            adapter.set('asg:1', metrics);
+
+            expect(adapter.get('asg:1')).toBe(metrics);
+            expect(cacheService.set).toHaveBeenCalledWith('metrics', 'asg:1', { version: 7, value: metrics });
+            expect(cacheService.get).toHaveBeenCalledWith('metrics', 'asg:1');
+        });
+    });
+
+    describe('趋势运行时构建器', () => {
+        it('应该复用同一组上下文完成指标、报告与学生统计计算', () => {
+            const metricsCache = new Map();
+            const runtime = globalThis.__AC2_INTERNALS__.stateTrend.createTrendRuntime({
+                roster: State.roster,
+                getAsgSubject: asg => asg.subject,
+                isStuIncluded: (asg, stu) => !(asg.subject === '英语' && stu.noEnglish),
+                parseScore: value => Number(value),
+                classifyTrend: entries => entries.length > 1 ? '自定义趋势' : '单次记录',
+                buildKey: timeline => `k:${timeline.length}`,
+                cache: globalThis.__AC2_INTERNALS__.stateTrend.createMetricsCacheAdapter({
+                    useCacheService: false,
+                    metricsCache,
+                    cacheVersion: 5,
+                    maxMetricsCacheSize: 10
+                })
+            });
+            const assignments = [
+                { id: 1, name: '任务1', subject: '英语', records: { '01': { score: '80', done: true } } },
+                { id: 2, name: '任务2', subject: '数学', records: { '01': { score: '90', done: true }, '02': { score: '70', done: true } } }
+            ];
+
+            const metrics = runtime.getAsgMetrics(assignments[1]);
+            const stats = runtime.calculateStudentStats(State.roster[0], assignments);
+            const report = runtime.getScoreRangeReport({
+                startId: 1,
+                endId: 2,
+                source: assignments,
+                rosterVersion: 2,
+                asgListVersion: 3
+            });
+
+            expect(metrics).toEqual({ total: 3, done: 2 });
+            expect(stats.stats.trend).toBe('自定义趋势');
+            expect(stats.timelineKey).toBe('k:2');
+            expect(report.students[0].stats.trend).toBe('自定义趋势');
+            expect(metricsCache.get(2)).toEqual({ version: 5, value: metrics });
+            expect(metricsCache.get('range:5|2|3|1,2')).toEqual({ version: 5, value: report });
+        });
+    });
+
     describe('分数范围报告', () => {
         beforeEach(() => {
             State.data = [

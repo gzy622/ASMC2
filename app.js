@@ -819,7 +819,6 @@
                 const refresh = () => { this.refreshGridPadding(); this.scheduleGridLayout(); };
                 this._gridResizeObserver = new ResizeObserver(refresh); this._gridResizeObserver.observe(this.gridEl);
                 window.addEventListener('resize', refresh, { passive: true });
-                if (window.visualViewport) window.visualViewport.addEventListener('resize', refresh, { passive: true });
                 this.scheduleGridLayout();
             },
             refreshGridPadding() {

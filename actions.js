@@ -482,28 +482,28 @@
             imp() {
                 const ui = this.ctx.views.createImportShell();
                 const { toast } = this.ctx;
-                
+
                 let currentPayload = null;
-                
+                let importRunId = 0;
+
                 const setStatus = (text, type = '') => {
                     ui.statusEl.textContent = text;
                     ui.statusEl.className = `import-status${type ? ` ${type}` : ''}`;
                 };
-                
+
                 const clearFile = () => {
                     currentPayload = null;
                     ui.fileInfo.hidden = true;
                     ui.dropZone.hidden = false;
                     ui.applyBtn.disabled = true;
                     ui.fileInput.value = '';
-                    setStatus('请选择备份文件');
+                    setStatus('请选择可信来源的备份文件，导入会覆盖当前数据');
                 };
-                
+
                 const showFileInfo = (fileName, payload) => {
                     currentPayload = payload;
                     ui.fileNameEl.textContent = fileName;
-                    
-                    // 生成预览信息
+
                     const previewHtml = `
                         <div class="import-fileinfo-preview-item">
                             <span class="import-fileinfo-preview-label">学生名单</span>
@@ -513,113 +513,94 @@
                             <span class="import-fileinfo-preview-label">作业任务</span>
                             <span class="import-fileinfo-preview-value">${payload.data.length} 个</span>
                         </div>
-                        <div class="import-fileinfo-preview-item">
-                            <span class="import-fileinfo-preview-label">卡片颜色</span>
-                            <span class="import-fileinfo-preview-value" style="display:inline-flex;align-items:center;gap:6px">
-                                <span style="width:14px;height:14px;border-radius:4px;background:${payload.prefs?.cardDoneColor || '#68c490'};border:1px solid rgba(0,0,0,.1)"></span>
-                                ${payload.prefs?.cardDoneColor?.toUpperCase() || '#68C490'}
-                            </span>
-                        </div>
                     `;
                     ui.previewEl.innerHTML = previewHtml;
-                    
+
                     ui.dropZone.hidden = true;
                     ui.fileInfo.hidden = false;
                     ui.applyBtn.disabled = false;
-                    setStatus('文件已就绪，点击"确认导入"开始恢复数据', 'ok');
+                    setStatus('文件校验通过，点击“确认导入”开始恢复', 'ok');
                 };
-                
-                const handleFile = (file) => {
-                    if (!file) return;
 
-                    const fileName = String(file.name || '').trim() || '未命名文件';
-                    
-                    setStatus('正在读取文件...', 'loading');
-                    ui.fileInput.value = '';
-                    
+                const readFileText = (file) => new Promise((resolve, reject) => {
                     const reader = new FileReader();
-                    reader.onload = (e) => {
-                        try {
-                            const data = JSON.parse(e.target.result);
-                            const payload = this.parseImportData(data);
-                            
-                            if (!payload) {
-                                currentPayload = null;
-                                ui.applyBtn.disabled = true;
-                                setStatus('文件格式不符合备份规范，请检查文件内容', 'err');
-                                toast.show('备份文件格式错误');
-                                return;
-                            }
-                            
-                            showFileInfo(fileName, payload);
-                        } catch (err) {
-                            currentPayload = null;
-                            ui.applyBtn.disabled = true;
-                            setStatus(`文件解析失败：${err.message}`, 'err');
-                            toast.show('无法解析备份文件');
-                        }
-                    };
-                    reader.onerror = () => {
-                        currentPayload = null;
-                        ui.applyBtn.disabled = true;
-                        setStatus('文件读取失败，请重试', 'err');
-                        toast.show('文件读取失败');
-                    };
+                    reader.onload = e => resolve(e.target?.result ?? '');
+                    reader.onerror = () => reject(new Error('文件读取失败，请重试'));
                     reader.readAsText(file);
+                });
+
+                const handleFile = async (file) => {
+                    if (!file) return;
+                    const runId = ++importRunId;
+                    const fileName = String(file.name || '').trim() || '未命名文件';
+                    setStatus('正在读取文件...', 'loading');
+                    ui.applyBtn.disabled = true;
+                    ui.fileInput.value = '';
+
+                    try {
+                        const text = await readFileText(file);
+                        if (runId !== importRunId) return;
+                        const payload = this.parseImportData(JSON.parse(text));
+                        if (!payload) {
+                            currentPayload = null;
+                            setStatus('文件格式不符合备份规范，请检查文件内容', 'err');
+                            toast.show('备份文件格式错误');
+                            return;
+                        }
+                        showFileInfo(fileName, payload);
+                    } catch (err) {
+                        if (runId !== importRunId) return;
+                        currentPayload = null;
+                        setStatus(`文件解析失败：${err.message}`, 'err');
+                        toast.show('无法解析备份文件');
+                    }
                 };
-                
-                // 点击上传区域选择文件
+
                 ui.dropZone.addEventListener('click', (e) => {
                     if (e.target.closest('.import-dropzone-content')) {
                         ui.fileInput.click();
                     }
                 });
-                
-                // 文件选择变化
+
                 ui.fileInput.addEventListener('change', (e) => {
                     const file = e.target.files?.[0];
                     if (file) handleFile(file);
                 });
-                
-                // 拖拽上传
+
                 ui.dropZone.addEventListener('dragover', (e) => {
                     e.preventDefault();
                     ui.dropZone.classList.add('dragover');
                 });
-                
+
                 ui.dropZone.addEventListener('dragleave', () => {
                     ui.dropZone.classList.remove('dragover');
                 });
-                
+
                 ui.dropZone.addEventListener('drop', (e) => {
                     e.preventDefault();
                     ui.dropZone.classList.remove('dragover');
                     const file = e.dataTransfer.files?.[0];
                     if (file) handleFile(file);
                 });
-                
-                // 移除文件
+
                 ui.removeBtn.addEventListener('click', clearFile);
-                
-                // 取消按钮
+
                 ui.cancelBtn.addEventListener('click', () => Modal.close(false));
-                
-                // 确认导入
+
                 ui.applyBtn.addEventListener('click', () => {
                     if (!currentPayload) {
                         setStatus('请先选择有效备份文件', 'err');
                         return;
                     }
-                    
+
                     setStatus('正在导入数据...', 'loading');
                     ui.applyBtn.disabled = true;
-                    
+
                     try {
                         this.applyImportData(currentPayload);
                         setStatus('导入成功！数据已恢复', 'ok');
                         toast.show('备份导入成功');
-                        
-                        // 延迟关闭，让用户看到成功消息
+
                         setTimeout(() => Modal.close(true), 800);
                     } catch (err) {
                         setStatus(`导入失败：${err.message}`, 'err');
@@ -627,7 +608,7 @@
                         toast.show('导入失败：' + err.message);
                     }
                 });
-                
+
                 Modal.show({ title: '', content: ui.root, type: 'full', loadingMask: false });
             },
             parseImportData(raw) {

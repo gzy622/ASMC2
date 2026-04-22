@@ -7,7 +7,7 @@ describe('Import backup', () => {
         vi.restoreAllMocks();
     });
 
-    it('should show file info for a valid backup even when the file name has no json suffix', () => {
+    it('should show file info for a valid backup even when the file name has no json suffix', async () => {
         const payload = {
             list: ['01 张三', '02 李四'],
             data: [{ id: 2, name: '数学作业', subject: '数学', records: {} }],
@@ -32,12 +32,14 @@ describe('Import backup', () => {
             value: [file]
         });
         input.dispatchEvent(new Event('change', { bubbles: true }));
+        await Promise.resolve();
+        await Promise.resolve();
 
         expect(document.querySelector('.import-fileinfo').hidden).toBe(false);
         expect(document.querySelector('[data-role="filename"]').textContent).toBe('backup');
         expect(document.querySelector('[data-role="preview"]').textContent).toContain('2 人');
         expect(document.querySelector('[data-role="preview"]').textContent).toContain('1 个');
-        expect(document.querySelector('.import-status').textContent).toContain('文件已就绪');
+        expect(document.querySelector('.import-status').textContent).toContain('文件校验通过');
         expect(document.querySelector('[data-role="apply"]').disabled).toBe(false);
     });
 });

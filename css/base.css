@@ -40,6 +40,12 @@ body {
     overflow: hidden;
 }
 
+@supports (height: 100lvh) {
+    body {
+        height: 100lvh;
+    }
+}
+
 button,
 input,
 select,

@@ -137,22 +137,10 @@ const ActionViews = {
     createImportShell() {
         const { root, body } = this.createShell('导入备份');
         body.style.padding = '16px';
-        
+
         const shell = document.createElement('section');
         shell.className = 'import-shell';
-        
-        // 警告提示区域
-        const warningSection = document.createElement('div');
-        warningSection.className = 'import-warning';
-        warningSection.innerHTML = `
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                <line x1="12" y1="9" x2="12" y2="13"></line>
-                <line x1="12" y1="17" x2="12.01" y2="17"></line>
-            </svg>
-            <span>导入将完全覆盖当前的名单、作业任务和设置数据，请确保备份文件来源可靠。</span>
-        `;
-        
+
         // 拖拽上传区域
         const dropZone = document.createElement('div');
         dropZone.className = 'import-dropzone';
@@ -165,12 +153,12 @@ const ActionViews = {
                     <line x1="12" y1="3" x2="12" y2="15"></line>
                 </svg>
                 <div class="import-dropzone-text">
-                    <strong>点击选择文件</strong>或拖拽文件到此处
+                    <strong>选择备份文件</strong>
                 </div>
-                <div class="import-dropzone-hint">支持备份文件导入（将自动校验内容）</div>
+                <div class="import-dropzone-hint">支持点击或拖拽，导入前会自动校验</div>
             </div>
         `;
-        
+
         // 文件信息区域
         const fileInfo = document.createElement('div');
         fileInfo.className = 'import-fileinfo';
@@ -191,13 +179,13 @@ const ActionViews = {
             </div>
             <div class="import-fileinfo-preview" data-role="preview"></div>
         `;
-        
+
         // 状态消息区域
         const statusArea = document.createElement('div');
         statusArea.className = 'import-status';
         statusArea.dataset.role = 'status';
-        statusArea.textContent = '请选择备份文件';
-        
+        statusArea.textContent = '请选择可信来源的备份文件，导入会覆盖当前数据';
+
         // 操作按钮区域
         const actions = document.createElement('div');
         actions.className = 'import-actions';
@@ -205,10 +193,10 @@ const ActionViews = {
             <button class="btn btn-c" type="button" data-role="cancel">取消</button>
             <button class="btn btn-p" type="button" data-role="apply" disabled>确认导入</button>
         `;
-        
-        shell.append(warningSection, dropZone, fileInfo, statusArea, actions);
+
+        shell.append(dropZone, fileInfo, statusArea, actions);
         body.appendChild(shell);
-        
+
         return {
             root,
             dropZone,

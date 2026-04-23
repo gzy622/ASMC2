@@ -724,7 +724,7 @@
                         const option = e.target.closest('.custom-select-option');
                         if (option) {
                             const value = option.dataset.value;
-                            State.selectAsg(+value);
+                            State.selectAsg(value);
                             this.closeCustomSelect();
                         }
                     };

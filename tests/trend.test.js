@@ -390,4 +390,31 @@ describe('Trend (趋势分析)', () => {
             expect(State.view.renderProgress).toHaveBeenCalled();
         });
     });
+
+    describe('学生分析报告', () => {
+        beforeEach(() => {
+            State.data = [
+                { id: 1, name: '英语小测1', subject: '英语', records: { '01': { score: '80', done: true }, '02': { score: '70', done: true } } },
+                { id: 2, name: '数学作业1', subject: '数学', records: { '01': { score: '90', done: true }, '02': { score: '', done: false } } },
+                { id: 3, name: '数学小测2', subject: '数学', records: { '01': { score: '88', done: true }, '02': { score: '75', done: true } } }
+            ];
+            State.rebuildAsgIndex();
+        });
+
+        it('scope=quiz 时仅统计小测', () => {
+            const report = State.getStudentAnalysisReport({ scope: 'quiz' });
+            expect(report.assignments.map(item => item.id)).toEqual([1, 3]);
+        });
+
+        it('search 仅过滤学生列表，不影响 summary 口径', () => {
+            const report = State.getStudentAnalysisReport({ scope: 'all', search: '张三' });
+            expect(report.summary.totalStudents).toBe(3);
+            expect(report.students.length).toBe(1);
+        });
+
+        it('sort=delta 时按变化值降序', () => {
+            const report = State.getStudentAnalysisReport({ scope: 'all', sort: 'delta' });
+            expect(report.students[0].id).toBe('01');
+        });
+    });
 });

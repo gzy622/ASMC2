@@ -647,6 +647,29 @@
                 });
             },
 
+            getStudentAnalysisReport(options = {}) {
+                const cache = StateTrend.createMetricsCacheAdapter({
+                    useCacheService: this._useCacheService,
+                    cacheService: CacheServiceRef,
+                    metricsCache: this._metricsCache,
+                    cacheVersion: this._cacheVersion,
+                    maxMetricsCacheSize: CACHE_CONFIG.MAX_METRICS_CACHE_SIZE || 50
+                });
+                return StateTrend.getStudentAnalysisReport({
+                    data: this.data,
+                    roster: this.roster,
+                    getAsgSubject: asg => this.getAsgSubject(asg),
+                    isStuIncluded: (asg, stu) => this.isStuIncluded(asg, stu),
+                    parseScore: value => this.parseNumericScore(value),
+                    classifyTrend: entries => this.classifyScoreTrend(entries),
+                    buildKey: timeline => this.buildTrendTimelineKey(timeline),
+                    cache,
+                    rosterVersion: this._rosterVersion,
+                    asgListVersion: this._asgListVersion,
+                    options
+                });
+            },
+
             _calculateStudentStats(stu, assignments) {
                 return this._getTrendRuntime().calculateStudentStats(stu, assignments);
             },

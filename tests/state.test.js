@@ -496,6 +496,14 @@ describe('State', () => {
         expect(document.querySelector('.modal-footer').style.display).toBe('none');
     });
 
+    it('should route compatibility entries to studentAnalysis', () => {
+        const spy = vi.spyOn(Actions, 'studentAnalysis').mockImplementation(() => {});
+        Actions.studentOverview();
+        Actions.quizTrend();
+        expect(spy).toHaveBeenNthCalledWith(1, { view: 'list' });
+        expect(spy).toHaveBeenNthCalledWith(2, { view: 'detail-picker', scope: 'quiz' });
+    });
+
     it('should mark full screen views with full modal class and delayed cleanup', async () => {
         vi.useFakeTimers();
         const rafQueue = [];

@@ -49,14 +49,24 @@
         return { changed: true, data: nextData, curId: id };
     };
 
+    const resolveAsgId = ({ id, asgMap }) => {
+        if (asgMap.has(id)) return id;
+        const numId = Number(id);
+        if (Number.isFinite(numId) && asgMap.has(numId)) return numId;
+        const strId = String(id);
+        if (asgMap.has(strId)) return strId;
+        return null;
+    };
+
     const selectAsg = ({ id, useAssignmentService, assignmentService, asgMap }) => {
+        const targetId = resolveAsgId({ id, asgMap });
+        if (targetId == null) return { changed: false };
         if (useAssignmentService) {
-            if (!assignmentService.has(id)) return { changed: false };
-            assignmentService.select(id);
+            if (!assignmentService.has(targetId)) return { changed: false };
+            assignmentService.select(targetId);
             return { changed: true, curId: assignmentService.getCurrentId() };
         }
-        if (!asgMap.has(id)) return { changed: false };
-        return { changed: true, curId: id };
+        return { changed: true, curId: targetId };
     };
 
     const renameAsg = ({ id, name, useAssignmentService, assignmentService, data, asgMap }) => {

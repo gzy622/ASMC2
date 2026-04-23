@@ -624,7 +624,20 @@
                 State.curId = State.resolveCurId(State.data[0].id);
                 State.save({ immediate: true, asgListChanged: true, invalidateDerived: false });
             },
+            studentAnalysis(options = {}) {
+                const view = options.view || 'list';
+                if (view === 'detail-picker') {
+                    return this._quizTrendLegacy();
+                }
+                return this._studentOverviewLegacy();
+            },
             studentOverview() {
+                return this.studentAnalysis({ view: 'list' });
+            },
+            quizTrend() {
+                return this.studentAnalysis({ view: 'detail-picker', scope: 'quiz' });
+            },
+            _studentOverviewLegacy() {
                 const ui = this.ctx.views.createStudentOverviewShell();
                 const { modal, toast, views, bottomSheet } = this.ctx;
                 let chrome = null;
@@ -868,7 +881,7 @@
                     heavy: () => renderList({ chunked: true })
                 });
             },
-            quizTrend() {
+            _quizTrendLegacy() {
                 const ui = this.ctx.views.createQuizTrendShell();
                 const assignments = State.getQuizTrendAssignments();
                 const TREND_DEFER_WORK_THRESHOLD = 120;

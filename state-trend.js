@@ -255,6 +255,102 @@
         return cache ? cache.set(cacheKey, report) : report;
     };
 
+    const getStudentAnalysisReport = ({
+        data,
+        roster,
+        getAsgSubject,
+        isStuIncluded,
+        parseScore = parseNumericScore,
+        classifyTrend = classifyScoreTrend,
+        buildKey = buildTrendTimelineKey,
+        cache,
+        rosterVersion = 0,
+        asgListVersion = 0,
+        options = {}
+    }) => {
+        const scope = options.scope === 'all' ? 'all' : 'quiz';
+        const subject = ['all', '英语', '数学', '语文', '其他'].includes(options.subject) ? options.subject : 'all';
+        const search = String(options.search || '').trim();
+        const sort = ['completion', 'score', 'delta'].includes(options.sort) ? options.sort : 'completion';
+        const source = scope === 'all' ? (Array.isArray(data) ? data : []) : getQuizTrendAssignments(data);
+        const assignments = subject === 'all' ? source : source.filter(asg => getAsgSubject(asg) === subject);
+        const cacheKey = `analysis:${cache?.getVersion?.() ?? 0}|${rosterVersion}|${asgListVersion}|${scope}|${subject}`;
+        const cached = cache?.get(cacheKey);
+        const matchesSearch = search ? (text => text.toLowerCase().includes(search.toLowerCase())) : null;
+        const buildStudents = (baseStudents) => {
+            const filtered = matchesSearch ? baseStudents.filter(stu => matchesSearch(stu.searchText || '')) : baseStudents.slice();
+            filtered.sort((a, b) => {
+                if (sort === 'score') {
+                    if ((b.avgScore ?? -1) !== (a.avgScore ?? -1)) return (b.avgScore ?? -1) - (a.avgScore ?? -1);
+                    if (b.completionRate !== a.completionRate) return b.completionRate - a.completionRate;
+                    return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+                }
+                if (sort === 'delta') {
+                    if ((b.delta ?? -Infinity) !== (a.delta ?? -Infinity)) return (b.delta ?? -Infinity) - (a.delta ?? -Infinity);
+                    if ((b.avgScore ?? -1) !== (a.avgScore ?? -1)) return (b.avgScore ?? -1) - (a.avgScore ?? -1);
+                    return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+                }
+                if (b.completionRate !== a.completionRate) return b.completionRate - a.completionRate;
+                if ((b.avgScore ?? -1) !== (a.avgScore ?? -1)) return (b.avgScore ?? -1) - (a.avgScore ?? -1);
+                return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+            });
+            return filtered;
+        };
+        if (cached) {
+            return { ...cached, students: buildStudents(cached.students) };
+        }
+        let completionTotal = 0;
+        let scoreSum = 0;
+        let scoreCount = 0;
+        const students = roster.map(stu => {
+            const computed = calculateStudentStats({ stu, assignments, isStuIncluded, getAsgSubject, parseScore, classifyTrend, buildKey });
+            const totalAsgs = computed.timeline.filter(item => item.included).length;
+            const completedAsgs = assignments.reduce((acc, asg) => acc + (asg.records?.[stu.id]?.done && isStuIncluded(asg, stu, getAsgSubject) ? 1 : 0), 0);
+            const scoredAsgs = computed.entries.length;
+            const avgScore = computed.stats.avg;
+            const completionRate = totalAsgs ? Math.round((completedAsgs / totalAsgs) * 100) : 0;
+            completionTotal += completionRate;
+            if (avgScore != null) {
+                scoreSum += avgScore;
+                scoreCount++;
+            }
+            return {
+                id: stu.id,
+                name: stu.name,
+                noEnglish: !!stu.noEnglish,
+                searchText: computed.searchText,
+                totalAsgs,
+                completedAsgs,
+                completionRate,
+                scoredAsgs,
+                avgScore,
+                trend: computed.stats.trend,
+                latest: computed.stats.latest,
+                delta: computed.stats.delta,
+                best: computed.stats.best,
+                timeline: computed.timeline,
+                entries: computed.entries,
+                timelineKey: computed.timelineKey,
+                renderKey: computed.renderKey
+            };
+        });
+        const summary = {
+            totalStudents: roster.length,
+            excludedCount: roster.filter(stu => !!stu.noEnglish).length,
+            avgCompletion: roster.length ? Math.round(completionTotal / roster.length) : 0,
+            avgScore: scoreCount ? Number((scoreSum / scoreCount).toFixed(1)) : null,
+            scope,
+            subject
+        };
+        const baseReport = {
+            summary,
+            students,
+            assignments: assignments.map(asg => ({ id: asg.id, name: asg.name, subject: getAsgSubject(asg) }))
+        };
+        if (cache) cache.set(cacheKey, baseReport);
+        return { ...baseReport, students: buildStudents(baseReport.students) };
+    };
+
     root.stateTrend = {
         parseNumericScore,
         buildTrendTimelineKey,
@@ -265,6 +361,7 @@
         createMetricsCacheAdapter,
         createTrendRuntime,
         getAsgMetrics,
-        getScoreRangeReport
+        getScoreRangeReport,
+        getStudentAnalysisReport
     };
 })();

@@ -69,7 +69,7 @@ export const STORAGE_KEYS = Object.freeze({
 // 应用标识
 export const APP = Object.freeze({
     NAME_SLUG: 'assignmentcheck2',
-    VERSION: '20260411-08'
+    VERSION: '20260423-03'
 });
 
 // 默认数据

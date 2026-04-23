@@ -105,7 +105,7 @@ export class AppView {
             e.stopPropagation();
             const option = e.target.closest('.custom-select-option');
             if (option) {
-                const value = parseInt(option.dataset.value, 10);
+                const value = option.dataset.value;
                 state.selectAssignment(value);
                 this._renderers.select.close();
             }

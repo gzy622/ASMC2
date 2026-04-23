@@ -66,15 +66,18 @@ const ActionViews = {
     createColorPanel(selected) {
         const panel = document.createElement('div');
         panel.className = 'color-panel';
-        panel.innerHTML = `<div class="color-preview">已登记卡片预览</div>
-            <div>
-                <div style="font-size:.84rem;font-weight:700;color:#5a6774;margin-bottom:8px">预设颜色</div>
+        panel.innerHTML = `<section class="color-preview-card">
+                <div class="color-preview-label">已登记卡片预览</div>
+                <div class="color-preview">ABC 123</div>
+            </section>
+            <section class="color-group">
+                <div class="color-group-title">预设颜色</div>
                 <div class="color-presets"></div>
-            </div>
-            <div>
-                <div style="font-size:.84rem;font-weight:700;color:#5a6774;margin-bottom:8px">自定义颜色</div>
-                <div class="color-picker-row"><input type="color" value="${selected}"><span class="color-code">${selected}</span></div>
-            </div>
+            </section>
+            <section class="color-group">
+                <div class="color-group-title">自定义颜色</div>
+                <div class="color-picker-row"><input type="color" value="${selected}" aria-label="自定义卡片颜色"><span class="color-code">${selected}</span></div>
+            </section>
             <div class="color-note">颜色会立即用于已登记学生卡片，并写入本地存储；导出备份时也会一起带上。</div>`;
         return {
             panel,

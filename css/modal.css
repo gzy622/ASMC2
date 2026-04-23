@@ -180,6 +180,7 @@ dialog.full.is-closing .modal-card {
     height: 44px;
     font-size: 1rem;
     font-weight: 600;
+    white-space: nowrap;
 }
 
 /* Modal Content Styles */
@@ -307,6 +308,21 @@ dialog.full.is-closing .modal-card {
     gap: 16px;
 }
 
+.color-preview-card,
+.color-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.color-preview-label,
+.color-group-title {
+    font-size: .84rem;
+    font-weight: 700;
+    color: #5a6774;
+    letter-spacing: .01em;
+}
+
 .color-preview {
     height: 96px;
     border-radius: 16px;
@@ -323,9 +339,9 @@ dialog.full.is-closing .modal-card {
 }
 
 .color-presets {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, 36px);
     gap: 10px;
-    flex-wrap: wrap;
 }
 
 .color-preset {
@@ -336,6 +352,9 @@ dialog.full.is-closing .modal-card {
     cursor: pointer;
     box-shadow: 0 4px 10px rgba(15,23,42,.08);
     transition: transform .12s ease, border-color .12s ease;
+    padding: 0;
+    appearance: none;
+    -webkit-appearance: none;
 }
 
 .color-preset.active {
@@ -369,6 +388,26 @@ dialog.full.is-closing .modal-card {
     color: #44515f;
     min-width: 108px;
     text-transform: uppercase;
+}
+
+@media (max-width: 420px) {
+    .color-preview {
+        height: 88px;
+        font-size: .98rem;
+    }
+
+    .color-picker-row {
+        gap: 10px;
+    }
+
+    .color-code {
+        min-width: 96px;
+        flex: 1 1 auto;
+    }
+
+    .modal-footer {
+        flex-direction: column;
+    }
 }
 
 .color-note {

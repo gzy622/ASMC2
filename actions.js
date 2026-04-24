@@ -48,7 +48,7 @@
                     btn.onclick = () => apply(hex); presetHost.appendChild(btn);
                 });
                 picker.oninput = e => apply(e.target.value); apply(selected);
-                const val = await modal.show({ title: '', content: root, type: 'full', loadingMask: false, btns: [{ text: '恢复默认', val: defaults.cardDoneColor }, { text: '取消', val: false }, { text: '保存', type: 'btn-p', onClick: () => modal.close(selected) }] });
+                const val = await modal.show({ title: '', content: root, type: 'full', loadingMask: false, btns: [{ text: '重置', val: defaults.cardDoneColor }, { text: '取消', val: false }, { text: '保存', type: 'btn-p', onClick: () => modal.close(selected) }] });
                 if (val) { state.prefs.cardDoneColor = colorUtil.normalizeHex(val, defaults.cardDoneColor); state.savePrefs(); toast.show('卡片颜色已更新'); }
             },
             async add() {

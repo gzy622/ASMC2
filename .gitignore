@@ -5,6 +5,7 @@ AGENTS.md
 技术债审查报告.md
 
 .vscode/
+.worktrees/
 node_modules/
 playwright-report/
 test-results/

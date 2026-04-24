@@ -100,7 +100,7 @@
 }
 
 .trend-board {
-    overflow-x: hidden;
+    overflow-x: auto;
 }
 
 .trend-list {

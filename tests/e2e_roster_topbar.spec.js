@@ -20,24 +20,23 @@ test.describe('Roster topbar', () => {
 
         await page.click('#btnMenu');
         await expect(page.locator('#menu')).toHaveClass(/show/);
-        await page.click('button[act="roster"]');
+        await page.click('button[act="studentOverview"]');
 
-        const topbar = page.locator('.roster-topbar');
+        const topbar = page.locator('.overview-edit-toolbar');
         const footer = page.locator('.modal-footer');
-        const firstName = page.locator('.roster-row [data-r="name"]').first();
+        const firstName = page.locator('.overview-card [data-r="name"]').first();
 
         await expect(topbar).toBeVisible();
-        await expect(page.locator('.roster-hint-card')).toHaveCount(0);
-        await expect(page.locator('[data-role="actions"] [data-act="add"]')).toBeVisible();
-        await expect(page.locator('[data-role="actions"] [data-act="autonum"]')).toBeVisible();
-        await expect(page.locator('[data-role="actions"] [data-act="sort-seat"]')).toBeVisible();
-        await expect(page.locator('[data-role="actions"] [data-act="clean"]')).toBeVisible();
-        await expect(page.locator('[data-role="submit"] [data-act="cancel"]')).toBeVisible();
-        await expect(page.locator('[data-role="submit"] [data-act="save"]')).toBeVisible();
+        await expect(page.locator('.overview-edit-toolbar [data-act="add"]')).toBeVisible();
+        await expect(page.locator('.overview-edit-toolbar [data-act="autonum"]')).toBeVisible();
+        await expect(page.locator('.overview-edit-toolbar [data-act="sort-seat"]')).toBeVisible();
+        await expect(page.locator('.overview-edit-toolbar [data-act="clean"]')).toBeVisible();
+        await expect(page.locator('.overview-edit-toolbar [data-act="cancel"]')).toBeVisible();
+        await expect(page.locator('.overview-edit-toolbar [data-act="save"]')).toBeVisible();
         await expect(footer).toHaveCSS('display', 'none');
 
         await firstName.fill('王五');
-        await page.click('[data-role="submit"] [data-act="save"]');
+        await page.click('.overview-edit-toolbar [data-act="save"]');
         await expect(topbar).not.toBeVisible();
 
         const storedRoster = await page.evaluate(() => JSON.parse(localStorage.getItem('tracker_roster')));

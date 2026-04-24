@@ -43,10 +43,10 @@ test.describe('Modal scroll without animations', () => {
         await expect(page.locator('#modal')).not.toHaveClass(/is-open/);
 
         await page.click('#btnMenu');
-        await page.click('button[act="roster"]');
+        await page.click('button[act="studentOverview"]');
 
         const rosterScroll = page.locator('.modal-body .st-scroll-area').first();
-        await expect(page.locator('.roster-row')).toHaveCount(60);
+        await expect(page.locator('.overview-card')).toHaveCount(60);
 
         const rosterScrollState = await rosterScroll.evaluate(el => {
             const canScroll = el.scrollHeight > el.clientHeight;

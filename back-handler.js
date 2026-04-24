@@ -31,7 +31,7 @@ const BackHandler = {
             return true;
         }
         const menu = $('menu');
-        if (menu.classList.contains('show')) {
+        if (menu?.classList.contains('show')) {
             menu.classList.remove('show');
             return true;
         }

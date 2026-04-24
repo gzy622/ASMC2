@@ -447,6 +447,13 @@ describe('State', () => {
         expect(document.getElementById('menu').classList.contains('closing')).toBe(false);
     });
 
+    it('should ignore back overlay closing when menu is absent', () => {
+        document.getElementById('menu').remove();
+
+        expect(() => BackHandler.closeOverlayLikeEsc()).not.toThrow();
+        expect(BackHandler.closeOverlayLikeEsc()).toBe(false);
+    });
+
     it('should render student overview cards immediately on the shared full screen transition branch', () => {
         State.list = ['01 张三', '02 李四'];
 

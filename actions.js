@@ -492,11 +492,24 @@
                 
                 const clearFile = () => {
                     currentPayload = null;
+                    ui.fileNameEl.textContent = '';
+                    ui.previewEl.innerHTML = '';
                     ui.fileInfo.hidden = true;
                     ui.dropZone.hidden = false;
                     ui.applyBtn.disabled = true;
                     ui.fileInput.value = '';
                     setStatus('请选择备份文件');
+                };
+
+                const rejectFile = (message, toastMessage) => {
+                    currentPayload = null;
+                    ui.fileNameEl.textContent = '';
+                    ui.previewEl.innerHTML = '';
+                    ui.fileInfo.hidden = true;
+                    ui.dropZone.hidden = false;
+                    ui.applyBtn.disabled = true;
+                    setStatus(message, 'err');
+                    toast.show(toastMessage);
                 };
                 
                 const showFileInfo = (fileName, payload) => {
@@ -535,6 +548,10 @@
                     const fileName = String(file.name || '').trim() || '未命名文件';
                     
                     setStatus('正在读取文件...', 'loading');
+                    currentPayload = null;
+                    ui.fileInfo.hidden = true;
+                    ui.dropZone.hidden = false;
+                    ui.applyBtn.disabled = true;
                     ui.fileInput.value = '';
                     
                     const reader = new FileReader();
@@ -544,26 +561,17 @@
                             const payload = this.parseImportData(data);
                             
                             if (!payload) {
-                                currentPayload = null;
-                                ui.applyBtn.disabled = true;
-                                setStatus('文件格式不符合备份规范，请检查文件内容', 'err');
-                                toast.show('备份文件格式错误');
+                                rejectFile('文件格式不符合备份规范，请检查文件内容', '备份文件格式错误');
                                 return;
                             }
                             
                             showFileInfo(fileName, payload);
                         } catch (err) {
-                            currentPayload = null;
-                            ui.applyBtn.disabled = true;
-                            setStatus(`文件解析失败：${err.message}`, 'err');
-                            toast.show('无法解析备份文件');
+                            rejectFile(`文件解析失败：${err.message}`, '无法解析备份文件');
                         }
                     };
                     reader.onerror = () => {
-                        currentPayload = null;
-                        ui.applyBtn.disabled = true;
-                        setStatus('文件读取失败，请重试', 'err');
-                        toast.show('文件读取失败');
+                        rejectFile('文件读取失败，请重试', '文件读取失败');
                     };
                     reader.readAsText(file);
                 };
@@ -612,17 +620,19 @@
                     }
                     
                     setStatus('正在导入数据...', 'loading');
+                    ui.applyBtn.textContent = '导入中...';
                     ui.applyBtn.disabled = true;
                     
                     try {
                         this.applyImportData(currentPayload);
-                        setStatus('导入成功！数据已恢复', 'ok');
+                        ui.applyBtn.textContent = '已导入';
+                        setStatus('导入成功，正在关闭...', 'ok');
                         toast.show('备份导入成功');
                         
-                        // 延迟关闭，让用户看到成功消息
-                        setTimeout(() => Modal.close(true), 800);
+                        setTimeout(() => Modal.close(true), 300);
                     } catch (err) {
                         setStatus(`导入失败：${err.message}`, 'err');
+                        ui.applyBtn.textContent = '确认导入';
                         ui.applyBtn.disabled = false;
                         toast.show('导入失败：' + err.message);
                     }

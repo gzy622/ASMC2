@@ -33,6 +33,9 @@ describe('State', () => {
         clearTimeout(UI._menuTimer);
         UI._menuTimer = 0;
         State.animations = true;
+        State.prefs = State.normalizePrefs({ cardDoneColor: APP_CONFIG.DEFAULT_CARD_COLOR, privacyNames: false });
+        State.applyPrivacyNames();
+        LS.set(KEYS.PREFS, State.prefs);
         State.applyAnim();
         LS.set(KEYS.SCOREPAD_FAST_TEN, false);
         ScorePad._setFastTenMode(false, { persist: false });
@@ -64,6 +67,24 @@ describe('State', () => {
         
         // Check noEnglishIds
         expect(State.noEnglishIds).toContain('02');
+    });
+
+    it('should keep real roster data while showing placeholder names in privacy mode', () => {
+        State.list = [
+            '01 张三',
+            '02 李四'
+        ];
+        State.parseRoster();
+        State.prefs = State.normalizePrefs({ privacyNames: false });
+
+        expect(State.getStudentDisplayName(State.roster[0])).toBe('张三');
+
+        State.togglePrivacyNames();
+
+        expect(State.getStudentDisplayName(State.roster[0])).toBe('甲一');
+        expect(State.getStudentDisplayName(State.roster[1])).toBe('乙一');
+        expect(State.list).toEqual(['01 张三', '02 李四']);
+        expect(State.roster[0].name).toBe('张三');
     });
 
     it('should default to showing names and sync view status text', () => {

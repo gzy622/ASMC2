@@ -434,7 +434,8 @@ describe('Utils (工具函数)', () => {
     describe('默认数据', () => {
         it('DEFAULT_ROSTER 应该包含学生名单', () => {
             expect(DEFAULT_ROSTER.length).toBeGreaterThan(0);
-            expect(DEFAULT_ROSTER[0]).toMatch(/^\d{2}\s/);
+            expect(DEFAULT_ROSTER[0]).toMatch(/^\d{2}\s[\u4e00-\u9fff]{2,3}$/);
+            expect(DEFAULT_ROSTER.every(line => /^\d{2}\s[\u4e00-\u9fff]{2,3}$/.test(line))).toBe(true);
         });
 
         it('SUBJECT_PRESETS 应该包含科目预设', () => {

@@ -16,18 +16,23 @@ export const CARD_COLOR_PRESETS = ['#68c490', '#8ecae6', '#f4a261', '#e9c46a', '
 /**
  * 默认名单数据
  */
-export const DEFAULT_ROSTER = [
-    '01 蓝慧婷', '02 陈静', '03 李智豪', '04 朱佑豪', '05 张伟芬',
-    '06 许俊熠', '07 李凤君', '08 黄文涛', '09 黄泺绮', '10 利子见',
-    '11 蔡嘉乐', '12 刘静娴', '13 蓝烽', '14 张思琪', '15 卢佳慧',
-    '16 钟佳渝', '17 叶帆', '18 吴梦婷', '19 彭文佳', '20 吴思静',
-    '21 刘嘉莹', '22 温秋茹', '23 李乐', '24 温沁钰', '25 林思婷',
-    '26 巫依霞', '27 刘雅淇', '28 侯润楹', '29 叶塘美', '30 黄宇凡',
-    '31 叶煌', '32 张清雅', '33 杨梓豪', '34 王政铭', '35 陈圆',
-    '36 刘斌', '37 丘雅莹', '38 罗燕', '39 何苑琦', '40 赵玉婷',
-    '41 曾宝茹', '42 张栩瑜', '43 李孝霖', '44 杨欢', '45 彭嘉红',
-    '46 丘瑜诗', '47 李欣', '48 吴嘉钰', '49 刘依婷', '50 曾誉宸'
-];
+export const PLACEHOLDER_NAME_PREFIXES = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+export const PLACEHOLDER_NAME_SUFFIXES = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉'];
+export const PLACEHOLDER_NAME_TAILS = ['东', '南', '西', '北', '中'];
+
+export const createPlaceholderStudentName = index => {
+    const safeIndex = Math.max(0, Number(index) || 0);
+    const prefix = PLACEHOLDER_NAME_PREFIXES[safeIndex % PLACEHOLDER_NAME_PREFIXES.length];
+    const suffix = PLACEHOLDER_NAME_SUFFIXES[Math.floor(safeIndex / PLACEHOLDER_NAME_PREFIXES.length) % PLACEHOLDER_NAME_SUFFIXES.length];
+    const block = Math.floor(safeIndex / (PLACEHOLDER_NAME_PREFIXES.length * PLACEHOLDER_NAME_SUFFIXES.length));
+    return block ? `${prefix}${suffix}${PLACEHOLDER_NAME_TAILS[(block - 1) % PLACEHOLDER_NAME_TAILS.length]}` : `${prefix}${suffix}`;
+};
+
+export const DEFAULT_ROSTER_SIZE = 50;
+export const DEFAULT_ROSTER = Array.from({ length: DEFAULT_ROSTER_SIZE }, (_, index) => {
+    const id = String(index + 1).padStart(2, '0');
+    return `${id} ${createPlaceholderStudentName(index)}`;
+});
 
 /**
  * 科目预设列表
@@ -311,7 +316,9 @@ export const toKebabCase = (str) => {
 export default {
     APP_NAME_SLUG,
     CARD_COLOR_PRESETS,
+    createPlaceholderStudentName,
     DEFAULT_ROSTER,
+    DEFAULT_ROSTER_SIZE,
     SUBJECT_PRESETS,
     clamp,
     formatDate,

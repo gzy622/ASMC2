@@ -1,7 +1,7 @@
         const App = (function() {
             const State = {
                 list: [], roster: [], data: [], curId: null, mode: 'name', scoring: false, animations: true, debug: false,
-                prefs: { cardDoneColor: APP_CONFIG.DEFAULT_CARD_COLOR },
+                prefs: { cardDoneColor: APP_CONFIG.DEFAULT_CARD_COLOR, privacyNames: false },
                 asgMap: new Map(),
                 rosterIndexMap: new Map(),
                 noEnglishIds: [],
@@ -49,6 +49,7 @@
                                 this.curId = this.resolveCurId(this.curId);
                                 this.applyAnim();
                                 this.applyCardColor();
+                                this.applyPrivacyNames();
                                 window.addEventListener('beforeunload', () => this._flushPersist({ includeDraft: true }));
                                 this.view.init();
                                 this._lastDraftSnapshot = this.getRecoverySnapshot();
@@ -73,7 +74,10 @@
              */
             normalizePrefs(raw) {
                 const prefs = raw && typeof raw === 'object' ? raw : {};
-                return { cardDoneColor: ColorUtil.normalizeHex(prefs.cardDoneColor, '#68c490') };
+                return {
+                    cardDoneColor: ColorUtil.normalizeHex(prefs.cardDoneColor, '#68c490'),
+                    privacyNames: prefs.privacyNames === true
+                };
             },
 
             /**
@@ -242,7 +246,9 @@
                 if (!this.isSameRecoveryData(a.data, b.data)) return false;
                 const curA = Number.isFinite(a.curId) ? a.curId : null;
                 const curB = Number.isFinite(b.curId) ? b.curId : null;
-                return curA === curB && this.normalizePrefs(a.prefs).cardDoneColor === this.normalizePrefs(b.prefs).cardDoneColor;
+                const prefsA = this.normalizePrefs(a.prefs);
+                const prefsB = this.normalizePrefs(b.prefs);
+                return curA === curB && prefsA.cardDoneColor === prefsB.cardDoneColor && prefsA.privacyNames === prefsB.privacyNames;
             },
 
             /**
@@ -425,6 +431,23 @@
                 this.markGridDirty({ full: true });
             },
 
+            getStudentPlaceholderName(stuOrId) {
+                const id = typeof stuOrId === 'object' ? stuOrId?.id : stuOrId;
+                const index = this.rosterIndexMap.get(String(id ?? ''));
+                return createPlaceholderStudentName(index == null ? 0 : index);
+            },
+
+            getStudentDisplayName(stu) {
+                if (!this.prefs?.privacyNames) return String(stu?.name ?? '');
+                return this.getStudentPlaceholderName(stu);
+            },
+
+            getStudentDisplayLabel(stu) {
+                const id = String(stu?.id ?? '').trim();
+                const name = this.getStudentDisplayName(stu).trim();
+                return [id, name].filter(Boolean).join(' ');
+            },
+
             /**
              * 保存应用状态，包括任务数据、名单数据和派生缓存
              * @param {Object} options - 保存选项
@@ -463,6 +486,7 @@
                 this.queueRecoveryDraft();
                 LS.set(KEYS.PREFS, this.prefs);
                 this.applyCardColor();
+                this.applyPrivacyNames();
             },
 
             applyAnim() {
@@ -484,6 +508,12 @@
                 d.setProperty('--done-card-badge-text', badgeText);
             },
 
+            applyPrivacyNames() {
+                const enabled = this.prefs?.privacyNames === true;
+                const sPrivacy = $('statusPrivacy'); if (sPrivacy) sPrivacy.textContent = enabled ? '开' : '关';
+                const btnPrivacy = $('btnPrivacy'); if (btnPrivacy) btnPrivacy.classList.toggle('active', enabled);
+            },
+
             applyScoring() {
                 const sScore = $('statusScore'); if (sScore) sScore.textContent = this.scoring ? '开' : '关';
                 const btnScore = $('btnScore'); if (btnScore) btnScore.classList.toggle('active', !!this.scoring);
@@ -499,6 +529,14 @@
             toggleViewMode() {
                 this.mode = this.mode === 'id' ? 'name' : 'id';
                 this.applyViewMode();
+            },
+
+            togglePrivacyNames() {
+                this.prefs = this.normalizePrefs({ ...this.prefs, privacyNames: !this.prefs?.privacyNames });
+                this.invalidateDerived();
+                this.markGridDirty({ full: true });
+                this.savePrefs();
+                if (this.view.isReady()) this.view.render();
             },
 
             invertCurrentSelection() {
@@ -654,7 +692,7 @@
                     if (studentStats.stats.entries.length) scoredStudentCount++;
                     return {
                         id: stu.id,
-                        name: stu.name,
+                        name: this.getStudentDisplayName(stu),
                         ...studentStats
                     };
                 });
@@ -711,9 +749,9 @@
                     entries,
                     timeline,
                     stats,
-                    searchText: `${stu.id} ${stu.name}`,
+                    searchText: this.getStudentDisplayLabel(stu),
                     timelineKey,
-                    renderKey: `${stu.id}|${stu.name}|${stats.coverage}|${stats.avg ?? ''}|${stats.latest ?? ''}|${stats.best ?? ''}|${stats.delta ?? ''}|${stats.trend}|${timelineKey}`
+                    renderKey: `${stu.id}|${this.getStudentDisplayName(stu)}|${stats.coverage}|${stats.avg ?? ''}|${stats.latest ?? ''}|${stats.best ?? ''}|${stats.delta ?? ''}|${stats.trend}|${timelineKey}`
                 };
             },
 
@@ -786,7 +824,7 @@
                     const act = e.target.closest('[act]')?.getAttribute('act');
                     if (act && this.actions.has(act)) { this.closeMenu(); this.actions.run(act); }
                 };
-                this.setupGrid(); this.setupGridSizing(); State.applyViewMode(); State.applyScoring(); 
+                this.setupGrid(); this.setupGridSizing(); State.applyViewMode(); State.applyPrivacyNames(); State.applyScoring(); 
                 
                 // 延迟标记UI为就绪状态，确保State数据已加载
                 setTimeout(() => {
@@ -991,10 +1029,11 @@
                 requestAnimationFrame(processBatch);
             },
             renderCard(card, stu, rec, excluded = false) {
-                card.dataset.id = stu.id; card.dataset.name = stu.name; card.dataset.excluded = excluded ? '1' : '0';
+                const displayName = State.getStudentDisplayName(stu);
+                card.dataset.id = stu.id; card.dataset.name = displayName; card.dataset.excluded = excluded ? '1' : '0';
                 const [idEl, nameEl, scoreEl] = card.children;
                 if (idEl.textContent !== stu.id) idEl.textContent = stu.id;
-                if (nameEl.textContent !== stu.name) nameEl.textContent = stu.name;
+                if (nameEl.textContent !== displayName) nameEl.textContent = displayName;
                 if (!globalThis.Modal || !Modal.isAnimating) {
                     card.classList.toggle('done', !excluded && !!rec.done);
                 }

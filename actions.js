@@ -30,6 +30,7 @@
             toggleView() { const { state } = this.ctx; state.toggleViewMode(); },
             toggleScore() { const { state } = this.ctx; state.scoring = !state.scoring; state.applyScoring(); },
             toggleAnim() { const { state } = this.ctx; state.animations = !state.animations; state.saveAnim(); },
+            togglePrivacyNames() { const { state, toast } = this.ctx; state.togglePrivacyNames(); toast.show(state.prefs.privacyNames ? '已开启防泄漏姓名' : '已关闭防泄漏姓名'); },
             invertSelection() { const { state, toast } = this.ctx; state.invertCurrentSelection(); toast.show('已执行整体反选'); },
 
             async cardColor() {
@@ -386,7 +387,7 @@
 
                 const headers = ['学号', '姓名', ...targetAssignments.map(a => a.name)];
                 const rows = State.roster.map(stu => {
-                    const row = [stu.id, stu.name];
+                    const row = [stu.id, State.getStudentDisplayName(stu)];
                     targetAssignments.forEach(asg => {
                         const isEnglish = State.isEnglishAsg(asg);
                         const isExcluded = isEnglish && stu.noEnglish;
@@ -440,8 +441,9 @@
                     const studentLines = [];
 
                     State.roster.forEach(stu => {
+                        const displayName = State.getStudentDisplayName(stu);
                         if (isEnglish && stu.noEnglish) {
-                            studentLines.push(`${stu.id} ${stu.name} 非英语生`);
+                            studentLines.push(`${stu.id} ${displayName} 非英语生`);
                             return;
                         }
                         const rec = asg.records?.[stu.id];
@@ -449,12 +451,12 @@
                             doneCount++;
                             if (rec?.score != null && rec?.score !== '') {
                                 scoredCount++;
-                                studentLines.push(`${stu.id} ${stu.name} ${rec.score}`);
+                                studentLines.push(`${stu.id} ${displayName} ${rec.score}`);
                             } else {
-                                studentLines.push(`${stu.id} ${stu.name} ✓`);
+                                studentLines.push(`${stu.id} ${displayName} ✓`);
                             }
                         } else {
-                            studentLines.push(`${stu.id} ${stu.name} 未交`);
+                            studentLines.push(`${stu.id} ${displayName} 未交`);
                         }
                     });
 
@@ -700,14 +702,16 @@
                         }
                         const completionRate = totalAsgs > 0 ? Math.round((completedAsgs / totalAsgs) * 100) : 0;
                         const avgScore = scoredAsgs > 0 ? Number((totalScore / scoredAsgs).toFixed(1)) : null;
+                        const displayName = State.getStudentDisplayName(entry);
                         stats.push({
                             ...entry,
+                            displayName,
                             totalAsgs,
                             completedAsgs,
                             completionRate,
                             scoredAsgs,
                             avgScore,
-                            searchText: `${entry.id} ${entry.name}`
+                            searchText: `${entry.id} ${displayName}`
                         });
                     }
                     return stats;
@@ -796,7 +800,10 @@
                             }
                             card.dataset.rowId = s._rowId;
                             card.querySelector('[data-r="id"]').value = s.id;
-                            card.querySelector('[data-r="name"]').value = s.name;
+                            const nameInput = card.querySelector('[data-r="name"]');
+                            nameInput.value = s.displayName;
+                            nameInput.readOnly = State.prefs?.privacyNames === true;
+                            nameInput.title = State.prefs?.privacyNames ? '防泄漏姓名已开启，关闭后可编辑真实姓名' : '';
                             card.querySelector('[data-r="ex"]').checked = !!s.noEnglish;
                             const badge = card.querySelector('.overview-completion-badge');
                             badge.textContent = `${s.completionRate}%`;
@@ -867,7 +874,7 @@
                     const entry = entries.find(e => e._rowId === rowId);
                     if (!entry) return;
                     if (e.target.dataset.r === 'id') entry.id = e.target.value;
-                    else if (e.target.dataset.r === 'name') entry.name = e.target.value;
+                    else if (e.target.dataset.r === 'name' && !State.prefs?.privacyNames) entry.name = e.target.value;
                     renderSummary(filterAndSortStats(getStudentStats()));
                 });
                 ui.listEl.addEventListener('change', (e) => {

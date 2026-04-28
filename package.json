@@ -5,6 +5,7 @@
   "main": "action-views.js",
   "scripts": {
     "preview": "npx -y http-server -p 3000",
+    "preview:lan": "npx -y http-server -p 3000 --host 0.0.0.0",
     "preview:local": "bash scripts/preview.sh",
     "test": "vitest run",
     "test:watch": "vitest",

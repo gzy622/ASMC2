@@ -1,8 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { pathToFileURL } from 'url';
-import { join } from 'path';
-
-const indexUrl = pathToFileURL(join(process.cwd(), 'index.html')).href;
 
 test.describe('Quiz trend mobile layout', () => {
     test('should keep trend content inside a horizontally scrollable board on portrait mobile', async ({ page }) => {
@@ -22,7 +18,7 @@ test.describe('Quiz trend mobile layout', () => {
                 { id: 4, name: '0322小测', subject: '英语', records: { '01': { score: '89', done: true }, '02': { score: '92', done: true } } }
             ]));
         });
-        await page.goto(indexUrl);
+        await page.goto('/');
 
         await page.waitForFunction(() => typeof document.getElementById('btnMenu')?.onclick === 'function');
         await page.click('#btnMenu');

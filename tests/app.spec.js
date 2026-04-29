@@ -1,17 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { pathToFileURL } from 'url';
-import { join } from 'path';
-
-const indexUrl = pathToFileURL(join(process.cwd(), 'index.html')).href;
 
 test.describe('AssignmentCheck2 E2E', () => {
     test('should load the page', async ({ page }) => {
-        await page.goto(indexUrl);
+        await page.goto('/');
         await expect(page).toHaveTitle(/作业登记/);
     });
 
     test('should show the menu when clicking the menu button', async ({ page }) => {
-        await page.goto(indexUrl);
+        await page.goto('/');
         await page.waitForFunction(() => typeof document.getElementById('btnMenu')?.onclick === 'function');
         await page.click('#btnMenu');
         const menu = page.locator('#menu');
@@ -19,7 +15,7 @@ test.describe('AssignmentCheck2 E2E', () => {
     });
 
     test('should default to showing names and toggle it from menu', async ({ page }) => {
-        await page.goto(indexUrl);
+        await page.goto('/');
 
         await expect(page.locator('body')).toHaveClass(/mode-names/);
 
@@ -32,7 +28,7 @@ test.describe('AssignmentCheck2 E2E', () => {
     });
 
     test('should show toast message (mock example)', async ({ page }) => {
-        await page.goto(indexUrl);
+        await page.goto('/');
         // We can evaluate scripts in the page context
         await page.evaluate(() => {
             Toast.show('测试消息');

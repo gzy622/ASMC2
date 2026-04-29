@@ -1,8 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { pathToFileURL } from 'url';
-import { join } from 'path';
-
-const indexUrl = pathToFileURL(join(process.cwd(), 'index.html')).href;
 
 test.describe('Modal scroll without animations', () => {
     test('should keep the assignment and roster managers scrollable when animations are off', async ({ page }) => {
@@ -17,7 +13,7 @@ test.describe('Modal scroll without animations', () => {
             }))));
         });
 
-        await page.goto(indexUrl);
+        await page.goto('/');
         await page.waitForFunction(() => typeof document.getElementById('btnMenu')?.onclick === 'function');
         await expect(page.locator('body')).toHaveClass(/no-animations/);
 

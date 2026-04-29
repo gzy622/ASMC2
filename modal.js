@@ -3,13 +3,41 @@ import { ANIMATION_DURATION } from './constants.js'
 import { BackHandler } from './back-handler.js'
 
 const Modal = {
-  el: $('modal'),
-  card: $('modal').querySelector('.modal-card'),
-  title: $('modal').querySelector('.modal-title'),
-  body: $('modal').querySelector('.modal-body'),
-  footer: $('modal').querySelector('.modal-footer'),
-  closeBtn: $('modal').querySelector('.modal-close'),
-  header: $('modal').querySelector('.modal-header'),
+  _el: null,
+  _card: null,
+  _title: null,
+  _body: null,
+  _footer: null,
+  _closeBtn: null,
+  _header: null,
+  get el() {
+    if (!this._el) this._el = $('modal')
+    return this._el
+  },
+  get card() {
+    if (!this._card) this._card = this.el.querySelector('.modal-card')
+    return this._card
+  },
+  get title() {
+    if (!this._title) this._title = this.el.querySelector('.modal-title')
+    return this._title
+  },
+  get body() {
+    if (!this._body) this._body = this.el.querySelector('.modal-body')
+    return this._body
+  },
+  get footer() {
+    if (!this._footer) this._footer = this.el.querySelector('.modal-footer')
+    return this._footer
+  },
+  get closeBtn() {
+    if (!this._closeBtn) this._closeBtn = this.el.querySelector('.modal-close')
+    return this._closeBtn
+  },
+  get header() {
+    if (!this._header) this._header = this.el.querySelector('.modal-header')
+    return this._header
+  },
   isOpen: false, isClosing: false, isFull: false, isAnimating: false, resolve: null,
   _scrollY: 0, _layoutRaf: 0, _enterRafA: 0, _enterRafB: 0, _viewportHandler: null, _focusHandler: null, _focusTimer: 0, _pointerGuardTimer: 0, _stableFocusMode: false, _lastLayout: null, _progressiveRoot: null, _progressiveController: null, _loadingMask: null, _loadingContentReady: false, _loadingTransitionReady: false, _loadingTransitionTimer: 0,
 

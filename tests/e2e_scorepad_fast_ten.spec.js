@@ -1,8 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { pathToFileURL } from 'url';
-import { join } from 'path';
-
-const indexUrl = pathToFileURL(join(process.cwd(), 'index.html')).href;
 
 test.describe('Scorepad fast ten mode', () => {
     test('should switch keypad to tens and auto confirm on click', async ({ page }) => {
@@ -19,7 +15,7 @@ test.describe('Scorepad fast ten mode', () => {
             localStorage.setItem('tracker_roster', JSON.stringify(roster));
             localStorage.setItem('tracker_db', JSON.stringify(data));
         });
-        await page.goto(indexUrl);
+        await page.goto('/');
         await page.waitForFunction(() => typeof document.getElementById('btnScore')?.onclick === 'function');
 
         await page.click('#btnScore');

@@ -1,8 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { pathToFileURL } from 'url';
-import { join } from 'path';
-
-const indexUrl = pathToFileURL(join(process.cwd(), 'index.html')).href;
 
 test.describe('Roster topbar', () => {
     test('should use the compact topbar for roster actions and save changes', async ({ page }) => {
@@ -15,7 +11,7 @@ test.describe('Roster topbar', () => {
                 records: {}
             }]));
         });
-        await page.goto(indexUrl);
+        await page.goto('/');
         await page.waitForFunction(() => typeof document.getElementById('btnMenu')?.onclick === 'function');
 
         await page.click('#btnMenu');

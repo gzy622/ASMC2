@@ -1,8 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { pathToFileURL } from 'url';
-import { join } from 'path';
-
-const indexUrl = pathToFileURL(join(process.cwd(), 'index.html')).href;
 
 test.describe('Quiz Trend View', () => {
     test('should open trend view and filter students within selected range', async ({ page }) => {
@@ -20,7 +16,7 @@ test.describe('Quiz Trend View', () => {
                 { id: 3, name: '0315小测', subject: '英语', records: { '01': { score: '90', done: true }, '03': { score: '78', done: true } } }
             ]));
         });
-        await page.goto(indexUrl);
+        await page.goto('/');
         await page.waitForFunction(() => typeof document.getElementById('btnMenu')?.onclick === 'function');
 
         await page.click('#btnMenu');

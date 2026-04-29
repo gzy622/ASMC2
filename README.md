@@ -1,14 +1,13 @@
 # 作业登记 AssignmentCheck2
 
-一个轻量化、零构建的课堂作业登记工具。默认通过 `index.html` 直接运行，支持本地持久化、导入导出、趋势分析、学生概览和整十快捷打分。
+一个轻量化、零构建的课堂作业登记工具。基于原生 ES Modules 架构，支持本地持久化、导入导出、趋势分析、学生概览和整十快捷打分。
 
 ## 版本信息
 
-- 当前菜单版本：`20260423-04`
+- 当前菜单版本：`20260428-01`
 - 入口：`index.html`
-- 默认运行方式：传统 `<script>` 顺序加载
-- 模块化入口：`app-modular.js`
-- 模块总入口：`modules/index.js`
+- 运行方式：原生 ES Modules (`type="module"`)
+- 启动入口：`boot.js`
 
 ## 功能概览
 
@@ -35,9 +34,7 @@
 
 ## 快速开始
 
-### 直接打开
-
-直接在浏览器中打开 `index.html` 即可使用。
+本项目使用原生 ES Modules，必须通过 HTTP 服务运行，不支持 `file://` 协议直接打开。
 
 ### 使用预览服务器
 
@@ -68,66 +65,22 @@ npm run test:coverage
 
 ```text
 .
-├── index.html
-├── app.js
-├── actions.js
-├── action-views.js
-├── app-modular.js
-├── back-handler.js
-├── boot.js
-├── bottom-sheet.js
-├── constants.js
-├── core.js
-├── modal.js
-├── module-loader.js
-├── scorepad.js
-├── utils.js
-├── css/
-│   ├── index.css
-│   ├── base.css
-│   ├── components.css
-│   ├── assignment.css
-│   ├── roster.css
-│   ├── modal.css
-│   ├── bottom-sheet.css
-│   ├── scorepad.css
-│   ├── overview.css
-│   ├── trend.css
-│   ├── animations.css
-│   └── responsive.css
-├── modules/
-│   ├── core/
-│   │   ├── constants.js
-│   │   ├── events.js
-│   │   └── index.js
-│   ├── data/
-│   │   ├── storage.js
-│   │   ├── models.js
-│   │   ├── state.js
-│   │   └── index.js
-│   ├── ui/
-│   │   ├── renderer.js
-│   │   ├── interactions.js
-│   │   ├── view.js
-│   │   └── index.js
-│   └── index.js
-├── utils/
-│   ├── index.js
-│   ├── dom.js
-│   ├── storage.js
-│   ├── validate.js
-│   ├── format.js
-│   └── animate.js
-├── tests/
-├── scripts/
-│   └── preview.sh
-├── docs/
-│   ├── architecture.md
-│   ├── api-reference.md
-│   ├── migration-guide.md
-│   └── improvement-plan/
-├── assets/
-│   └── fonts/
+├── index.html          # 应用入口，加载 XLSX CDN 和 boot.js
+├── boot.js             # ESM 启动入口
+├── constants.js        # 全局常量（命名导出）
+├── utils.js            # 工具函数库（命名导出）
+├── app.js              # 状态管理与 UI 协调（命名导出 State, UI）
+├── actions.js          # 菜单动作、导入导出等业务逻辑
+├── action-views.js     # 业务视图工厂
+├── back-handler.js     # 浏览器返回处理
+├── modal.js            # 弹窗组件
+├── bottom-sheet.js     # 底部滑出面板
+├── scorepad.js         # 分数录入面板
+├── core.js             # 兼容层
+├── css/                # 样式文件
+├── tests/              # 测试文件
+├── scripts/            # 脚本工具
+├── docs/               # 文档
 ├── package.json
 ├── playwright.config.js
 ├── vitest.config.js
@@ -155,34 +108,34 @@ npm run test:coverage
 | `action-views.js` | 业务视图工厂 |
 | `back-handler.js` | 浏览器返回处理 |
 
-## 模块化实现
+## ESM 模块依赖
 
-仓库保留一套 ES6 模块实现，目录如下：
+应用使用原生 ES Modules，入口 `index.html` 仅加载：
 
-- `modules/core/`：常量与事件总线
-- `modules/data/`：存储、模型、状态
-- `modules/ui/`：渲染、交互、视图
+```html
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.core.min.js"></script>
+<script type="module" src="./boot.js"></script>
+```
 
-模块化入口为 `app-modular.js`，总入口为 `modules/index.js`。
-
-## 模块依赖
-
-默认页面的脚本加载顺序如下：
+`boot.js` 通过 `import/export` 组织依赖：
 
 ```text
-index.html
-├── constants.js
-├── utils.js
-├── core.js
-├── back-handler.js
-├── modal.js
-├── bottom-sheet.js
-├── scorepad.js
-├── app.js
-├── action-views.js
-├── actions.js
-└── boot.js
+boot.js
+├── app.js (State, UI)
+├── actions.js (Actions)
+├── action-views.js (ActionViews)
+├── modal.js (Modal)
+├── scorepad.js (ScorePad)
+└── utils.js (Toast 等全局兼容)
 ```
+
+各模块通过命名导出提供接口：
+- `constants.js`: `APP_CONFIG`, `TIMER_DELAY`, `KEYS`, `DEFAULT_ROSTER` 等
+- `utils.js`: `LS`, `$`, `Toast`, `ColorUtil`, `IdGenerator`, `Validator` 等
+- `app.js`: `State`, `UI`
+- `actions.js`: `Actions`
+- `modal.js`: `Modal`
+- `scorepad.js`: `ScorePad`
 
 ## 开发脚本
 
@@ -204,12 +157,12 @@ index.html
 ## 技术特点
 
 - 零构建
+- 原生 ES Modules 架构
 - 纯原生 JavaScript
 - 响应式布局
 - 本地持久化
 - 导入导出能力
 - 渐进式渲染
-- 传统脚本与模块化实现并存
 
 ## 相关文档
 

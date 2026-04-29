@@ -1,239 +1,266 @@
 # 迁移指南
 
-> **从传统脚本迁移到 ES6 模块系统**
+> **ESM 架构迁移完成说明**
+> **版本**: 2.0
+> **日期**: 2026-04-29
 
 ---
 
 ## 📋 迁移概览
 
-本次架构升级引入了 ES6 模块系统，同时保持对现有代码的向后兼容。您可以选择以下迁移路径：
-
-| 路径 | 难度 | 适用场景 |
-|------|------|----------|
-| **保持现状** | 无 | 现有功能稳定，无需修改 |
-| **渐进迁移** | 低 | 新功能使用模块，旧代码保持不变 |
-| **完全迁移** | 中 | 全面采用新架构 |
+项目已完成从传统全局脚本到原生 ES Modules 的架构迁移。当前架构为单一 ESM 模式，所有模块通过 `import/export` 显式依赖。
 
 ---
 
-## 🔄 迁移对照表
+## 🏗️ 架构变更
+
+### 变更前 (传统脚本)
+
+```html
+<!-- index.html -->
+<script src="constants.js"></script>
+<script src="utils.js"></script>
+<script src="core.js"></script>
+<script src="back-handler.js"></script>
+<script src="modal.js"></script>
+<script src="bottom-sheet.js"></script>
+<script src="scorepad.js"></script>
+<script src="app.js"></script>
+<script src="action-views.js"></script>
+<script src="actions.js"></script>
+<script src="boot.js"></script>
+```
+
+### 变更后 (ES Modules)
+
+```html
+<!-- index.html -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.core.min.js"></script>
+<script type="module" src="./boot.js"></script>
+```
+
+```javascript
+// boot.js
+import { State, UI } from './app.js'
+import { Actions } from './actions.js'
+import { ActionViews } from './action-views.js'
+import { Modal } from './modal.js'
+import { ScorePad } from './scorepad.js'
+
+export function bootstrapApp() {
+  // 初始化...
+}
+
+bootstrapApp()
+```
+
+---
+
+## 📦 模块导出对照
+
+### constants.js
+
+```javascript
+// 命名导出
+export const APP_CONFIG = { ... }
+export const TIMER_DELAY = { ... }
+export const INTERACTION_THRESHOLD = { ... }
+export const CACHE_CONFIG = { ... }
+export const GRID_CONFIG = { ... }
+export const KEYS = { ... }
+export const DEFAULT_ROSTER = [ ... ]
+```
+
+### utils.js
+
+```javascript
+// DOM 操作
+export const $ = id => document.getElementById(id)
+export const qs = (selector, parent) => ...
+export const qsa = (selector, parent) => ...
+export const createEl = (tag, attrs, text) => ...
+
+// 存储
+export const LS = { get, set, remove }
+
+// 工具类
+export const Toast = { init, show, hide }
+export const ColorUtil = { hexToHsl, hslToHex, darken }
+export const IdGenerator = { generate }
+export const Validator = { isValidStudentId, isValidName }
+
+// 常量
+export { APP_CONFIG, TIMER_DELAY, KEYS, DEFAULT_ROSTER } from './constants.js'
+```
+
+### app.js
+
+```javascript
+export const State = { ... }
+export const UI = { ... }
+```
+
+### actions.js
+
+```javascript
+export const Actions = { ... }
+```
+
+### action-views.js
+
+```javascript
+export const ActionViews = { ... }
+```
+
+### modal.js
+
+```javascript
+export const Modal = { ... }
+```
+
+### scorepad.js
+
+```javascript
+export const ScorePad = { ... }
+```
+
+---
+
+## 🔄 API 变更对照
 
 ### 状态管理
 
-| 传统代码 | 模块代码 |
-|----------|----------|
-| `State.list` | `state.students` |
-| `State.data` | `state.assignments` |
-| `State.cur` | `state.currentAssignment` |
-| `State.curId` | `state.currentId` |
-| `State.prefs` | `state.preferences` |
-| `State.addAsg(name)` | `state.createAssignment(name)` |
-| `State.selectAsg(id)` | `state.selectAssignment(id)` |
-| `State.removeAsg(id)` | `state.deleteAssignment(id)` |
-| `State.updRec(id, val)` | `state.updateRecord(id, val)` |
-| `State.toggleViewMode()` | `state.preferences.showNames = !state.preferences.showNames` |
-| `State.save()` | 自动处理，无需调用 |
+| 变更前 (全局) | 变更后 (ESM) |
+|---------------|--------------|
+| `State.list` | `State.list` (相同) |
+| `State.data` | `State.data` (相同) |
+| `State.curId` | `State.curId` (相同) |
+| `State.prefs` | `State.prefs` (相同) |
+| `State.addAsg(name)` | `State.addAsg(name)` (相同) |
+| `State.selectAsg(id)` | `State.selectAsg(id)` (相同) |
+| `State.removeAsg(id)` | `State.removeAsg(id)` (相同) |
+| `State.updRec(id, val)` | `State.updRec(id, val)` (相同) |
+| `State.toggleDone(id)` | `State.toggleDone(id)` (相同) |
+| `State.save()` | `State.save()` (相同) |
 
-### 数据模型
+### 工具函数
 
-| 传统代码 | 模块代码 |
-|----------|----------|
-| `{ id, name, records: {} }` | `new Assignment({ name })` |
-| `State.normalizeAsg(data)` | `Assignment.fromJSON(data)` |
-| `State.parseRosterLine(line)` | `Student.parse(line)` |
-
-### 事件系统
-
-| 传统代码 | 模块代码 |
-|----------|----------|
-| 无（直接调用） | `appEvents.on(event, callback)` |
-| 无 | `appEvents.emit(event, data)` |
-
-### 存储
-
-| 传统代码 | 模块代码 |
-|----------|----------|
-| `LS.get(key, default)` | `LS.get(key, default)` (相同) |
-| `LS.set(key, value)` | `LS.set(key, value)` (相同) |
+| 变更前 (全局) | 变更后 (ESM) |
+|---------------|--------------|
+| `$(id)` | `import { $ } from './utils.js'` |
+| `LS.get(key, default)` | `import { LS } from './utils.js'` |
+| `Toast.show(msg)` | `import { Toast } from './utils.js'` |
+| `ColorUtil.hexToHsl(hex)` | `import { ColorUtil } from './utils.js'` |
 
 ---
 
-## 🛠️ 渐进迁移步骤
+## 🚀 运行方式变更
 
-### 步骤 1: 引入模块兼容层
+### 变更前
 
-在 `index.html` 中添加：
+可直接双击 `index.html` 在浏览器中打开（`file://` 协议）。
 
-```html
-<!-- 在原有脚本之后添加 -->
-<script type="module" src="modules-compat.js"></script>
-```
+### 变更后
 
-### 步骤 2: 在现有代码中使用模块
-
-```javascript
-// 在 actions.js 或其他文件中
-async function someAction() {
-    // 检查模块系统是否就绪
-    if (typeof ModuleSystem !== 'undefined' && ModuleSystem.isReady()) {
-        const state = ModuleSystem.getState();
-        // 使用新 API
-        state.createAssignment('新任务');
-    } else {
-        // 使用传统 API
-        State.addAsg('新任务');
-    }
-}
-```
-
-### 步骤 3: 新功能使用模块系统
-
-创建新的模块文件：
-
-```javascript
-// modules/features/new-feature.js
-import { state, appEvents, Events } from '../index.js';
-
-export function newFeature() {
-    // 使用模块系统
-    appEvents.on(Events.ASG_CREATED, ({ assignment }) => {
-        console.log('新任务:', assignment.name);
-    });
-}
-```
-
-### 步骤 4: 完全迁移（可选）
-
-将 `index.html` 中的脚本引用改为模块方式：
-
-```html
-<!-- 传统方式 -->
-<script src="utils.js"></script>
-<script src="core.js"></script>
-<script src="app.js"></script>
-...
-
-<!-- 模块方式 -->
-<script type="module" src="app-modern.js"></script>
-```
-
----
-
-## 🧪 测试迁移后的代码
-
-### 运行现有测试
+必须通过 HTTP 服务运行：
 
 ```bash
-npm test
+# 使用 npm
+npm run preview
+
+# 或使用本地脚本
+npm run preview:local
 ```
 
-### 测试模块系统
+访问 `http://localhost:3000`
+
+**注意**: 不再支持 `file://` 协议直接打开，因为 ES Modules 需要 HTTP 上下文。
+
+---
+
+## 🧪 测试更新
+
+### 单元测试
+
+测试文件使用 ESM 动态导入：
 
 ```javascript
-// test/module-compat.test.js
-import { describe, it, expect } from 'vitest';
+// tests/setup.js
+const { State, UI } = await import('../app.js')
+const { $, LS } = await import('../utils.js')
+```
 
-describe('Module System', () => {
-    it('should expose ModuleSystem globally', () => {
-        expect(typeof ModuleSystem).toBe('object');
-    });
-    
-    it('should load modules', async () => {
-        const modules = await ModuleSystem.init();
-        expect(modules).not.toBeNull();
-        expect(modules.state).toBeDefined();
-    });
-});
+运行测试：
+
+```bash
+npm run test
+```
+
+### E2E 测试
+
+Playwright 配置使用 HTTP 预览服务：
+
+```javascript
+// playwright.config.js
+export default {
+  webServer: {
+    command: 'npm run preview',
+    port: 3000,
+  },
+  use: {
+    baseURL: 'http://localhost:3000',
+  },
+}
+```
+
+运行 E2E 测试：
+
+```bash
+npm run test:e2e
 ```
 
 ---
 
-## ⚠️ 注意事项
+## 🗑️ 已删除文件
 
-### 1. 模块加载是异步的
+以下文件已删除，不再使用：
 
-```javascript
-// 错误：立即访问可能未就绪
-ModuleSystem.init();
-const state = ModuleSystem.getState(); // 可能为 null
-
-// 正确：等待初始化完成
-const modules = await ModuleSystem.init();
-const state = modules.state;
-```
-
-### 2. 事件名称变化
-
-```javascript
-// 传统代码可能使用硬编码
-const EVENT_UPDATE = 'update';
-
-// 模块代码使用常量
-import { Events } from './modules/index.js';
-const EVENT_UPDATE = Events.RECORD_UPDATED;
-```
-
-### 3. 数据模型差异
-
-```javascript
-// 传统代码使用纯对象
-const asg = State.cur;
-console.log(asg.name);
-
-// 模块代码使用类实例，功能相同
-const asg = state.currentAssignment;
-console.log(asg.name); // 相同
-```
+- `app-modular.js` - 旧模块化入口
+- `module-loader.js` - 模块加载器
+- `tests/setup-modular.js` - 旧测试配置
+- `modules/` 目录 - 未接入的模块化实现
 
 ---
 
-## 📊 迁移检查清单
+## ✅ 兼容性说明
 
-- [ ] 添加模块兼容层
-- [ ] 验证现有测试通过
-- [ ] 更新新功能使用模块
-- [ ] 文档更新
-- [ ] 性能测试
-- [ ] 生产环境验证
+### 数据兼容性
 
----
+- localStorage 键名保持不变：
+  - `tracker_db` - 作业任务
+  - `tracker_roster` - 学生名单
+  - `tracker_anim` - 动画开关
+  - `tracker_prefs` - 用户偏好
+  - `tracker_recovery_draft` - 恢复草稿
+  - `tracker_scorepad_fast_ten` - 打分面板设置
 
-## 🆘 故障排除
+- 现有数据可无缝迁移，无需转换
 
-### 问题：模块加载失败
+### 全局兼容桥
 
-**症状**: `ModuleSystem.isReady()` 返回 `false`
+部分工具仍挂载到 `globalThis` 供浏览器控制台使用：
 
-**解决**:
-1. 检查浏览器控制台错误
-2. 确认 `modules-compat.js` 已加载
-3. 检查服务器是否支持 ES6 模块
-
-### 问题：状态不同步
-
-**症状**: 模块状态和传统状态不一致
-
-**解决**:
-- 确保只使用一种方式修改状态
-- 不要混用 `State.xxx` 和 `state.xxx`
-
-### 问题：事件未触发
-
-**症状**: 订阅的事件没有响应
-
-**解决**:
 ```javascript
-// 检查事件名称
-console.log(Events); // 查看所有可用事件
-
-// 确保正确订阅
-appEvents.on(Events.RECORD_UPDATED, callback);
+// 浏览器控制台仍可使用
+globalThis.Toast
+globalThis.LS
+globalThis.$
 ```
 
 ---
 
 ## 📚 相关文档
 
-- [架构文档](./architecture.md) - 详细架构说明
-- [API 参考](./api-reference.md) - 完整的 API 文档
-- [模块说明](./modules/README.md) - 各模块详细说明
+- [架构文档](./architecture.md) - ESM 架构详细说明
+- [API 参考](./api-reference.md) - 模块导出接口文档
+- [README.md](../README.md) - 项目概览和快速开始

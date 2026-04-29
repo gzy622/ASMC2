@@ -1,581 +1,612 @@
 # API 参考文档
 
-> **ES6 模块系统 API 完整参考**
+> **原生 ES Modules API 参考**
+> **版本**: 2.0
+> **日期**: 2026-04-29
 
 ---
 
 ## 📦 模块导入
 
 ```javascript
-// 导入所有模块
-import * as App from './modules/index.js';
-
-// 按需导入
-import { state, view, appEvents, Events } from './modules/index.js';
-import { Student, Assignment } from './modules/data/models.js';
-import { LS } from './modules/data/storage.js';
+// 导入核心模块
+import { APP_CONFIG, TIMER_DELAY, KEYS, DEFAULT_ROSTER } from './constants.js'
+import { $, LS, Toast, ColorUtil, IdGenerator, Validator } from './utils.js'
+import { State, UI } from './app.js'
+import { Actions } from './actions.js'
+import { ActionViews } from './action-views.js'
+import { Modal } from './modal.js'
+import { ScorePad } from './scorepad.js'
 ```
 
 ---
 
-## 🎯 核心模块 (core)
+## 🎯 核心模块 (constants.js)
 
-### Constants
+### APP_CONFIG
 
-```javascript
-import { 
-    ANIMATION_DURATION,
-    TIMER_DELAY,
-    INTERACTION_THRESHOLD,
-    STORAGE_KEYS,
-    DEFAULTS,
-    REGEX
-} from './modules/core/constants.js';
-```
+| 常量 | 值 | 说明 |
+|------|-----|------|
+| `DEFAULT_CARD_COLOR` | `'#68c490'` | 默认卡片颜色 |
+| `PERSIST_DELAY_MS` | `300` | 持久化延迟 |
+| `INIT_DELAY_MS` | `100` | 初始化延迟 |
+| `UI_READY_DELAY_MS` | `200` | UI 就绪延迟 |
+| `LONG_PRESS_DURATION_MS` | `500` | 长按持续时间 |
 
-#### ANIMATION_DURATION
+### TIMER_DELAY
+
 | 常量 | 值 (ms) | 说明 |
 |------|---------|------|
-| `FULL_ENTER` | 220 | 全屏弹窗进入 |
-| `FULL_EXIT` | 160 | 全屏弹窗退出 |
-| `BOTTOM_SHEET_CLOSE` | 260 | 底部面板关闭 |
-| `LOADING_MASK_FADE` | 90 | 加载遮罩淡入淡出 |
-| `POINTER_GUARD_DEFAULT` | 320 | 指针保护默认时长 |
-| `MENU_CLOSE` | 160 | 菜单关闭 |
+| `DRAFT_PERSIST` | `1200` | 草稿保存延迟 |
+| `CARD_META_SAVE` | `250` | 卡片元数据保存 |
+| `SCOREPAD_CLOSE` | `120` | 打分面板关闭延迟 |
+| `BACK_SIGNAL_DEBOUNCE` | `80` | 返回信号防抖 |
+| `EXIT_WINDOW` | `1500` | 退出窗口时间 |
 
-#### TIMER_DELAY
+### ANIMATION_DURATION
+
 | 常量 | 值 (ms) | 说明 |
 |------|---------|------|
-| `DRAFT_PERSIST` | 1200 | 草稿保存延迟 |
-| `CARD_META_SAVE` | 250 | 卡片元数据保存 |
-| `PERSIST` | 300 | 持久化延迟 |
+| `FULL_ENTER` | `220` | 全屏弹窗进入 |
+| `FULL_EXIT` | `160` | 全屏弹窗退出 |
+| `BOTTOM_SHEET_CLOSE` | `260` | 底部面板关闭 |
+| `LOADING_MASK_FADE` | `90` | 加载遮罩淡入淡出 |
+| `POINTER_GUARD_DEFAULT` | `320` | 指针保护默认时长 |
 
-### EventBus
+### KEYS (localStorage 键名)
 
-```javascript
-import { appEvents, Events } from './modules/core/events.js';
-```
-
-#### 方法
-
-##### `on(event, callback): Function`
-订阅事件，返回取消订阅函数。
-
-```javascript
-const unsubscribe = appEvents.on(Events.RECORD_UPDATED, ({ studentId }) => {
-    console.log(`学生 ${studentId} 已更新`);
-});
-
-// 取消订阅
-unsubscribe();
-```
-
-##### `once(event, callback)`
-订阅一次性事件。
-
-```javascript
-appEvents.once(Events.STATE_INITIALIZED, () => {
-    console.log('状态初始化完成');
-});
-```
-
-##### `emit(event, data)`
-触发事件。
-
-```javascript
-appEvents.emit('custom:event', { foo: 'bar' });
-```
-
-#### 事件常量 (Events)
-
-| 类别 | 事件名 | 数据 |
-|------|--------|------|
-| 状态 | `STATE_INITIALIZED` | `{ state }` |
-| 状态 | `STATE_CHANGED` | `{ state, changes }` |
-| 数据 | `DATA_LOADED` | `{ state }` |
-| 数据 | `DRAFT_RESTORED` | `{ draft }` |
-| 任务 | `ASG_CREATED` | `{ assignment }` |
-| 任务 | `ASG_UPDATED` | `{ assignment, updates }` |
-| 任务 | `ASG_DELETED` | `{ id }` |
-| 任务 | `ASG_SELECTED` | `{ assignment }` |
-| 记录 | `RECORD_UPDATED` | `{ studentId, assignmentId, record }` |
-| 视图 | `VIEW_READY` | `{ view }` |
-| 视图 | `VIEW_RENDERED` | `{ view }` |
+| 常量 | 值 | 说明 |
+|------|-----|------|
+| `LIST` | `'tracker_roster'` | 学生名单 |
+| `DATA` | `'tracker_db'` | 作业任务数据 |
+| `ANIM` | `'tracker_anim'` | 动画开关 |
+| `PREFS` | `'tracker_prefs'` | 用户偏好 |
+| `DRAFT` | `'tracker_recovery_draft'` | 恢复草稿 |
+| `SCOREPAD_FAST_TEN` | `'tracker_scorepad_fast_ten'` | 打分面板快捷设置 |
 
 ---
 
-## 💾 数据模块 (data)
+## 🛠️ 工具模块 (utils.js)
 
-### Storage
+### DOM 操作
 
-```javascript
-import { LS, storage, appStorage } from './modules/data/storage.js';
-```
-
-#### LS (便捷接口)
+#### `$(id)`
+通过 ID 获取元素。
 
 ```javascript
-// 获取值
-const value = LS.get('key', defaultValue);
-
-// 设置值
-LS.set('key', value);
-
-// 删除值
-LS.remove('key');
+import { $ } from './utils.js'
+const grid = $('grid')
 ```
 
-#### StorageAdapter
+#### `qs(selector, parent)`
+通过选择器获取单个元素。
 
 ```javascript
-// 创建命名空间存储
-const myStorage = storage.namespace('myapp');
-myStorage.set('key', value);
-
-// 获取所有键
-const keys = myStorage.keys();
+import { qs } from './utils.js'
+const btn = qs('.btn-primary', container)
 ```
 
-### Models
+#### `qsa(selector, parent)`
+通过选择器获取所有匹配元素。
 
 ```javascript
-import { 
-    Student, 
-    Assignment, 
-    StudentRecord,
-    Preferences,
-    RecoveryDraft,
-    IdGenerator
-} from './modules/data/models.js';
+import { qsa } from './utils.js'
+const cards = qsa('.student-card')
 ```
 
-#### Student
+#### `createEl(tag, attrs, text)`
+创建 DOM 元素。
 
 ```javascript
-// 创建
-const student = new Student({ id: '1', name: '张三' });
-
-// 从字符串解析
-const student2 = Student.parse('2 李四 #非英语');
-
-// 属性
-student.id;        // '1'
-student.name;      // '张三'
-student.noEnglish; // false
-student.isValid(); // true
-
-// 序列化
-const json = student.toJSON();
-const restored = Student.fromJSON(json);
+import { createEl } from './utils.js'
+const btn = createEl('button', { class: 'btn', disabled: false }, '点击')
 ```
 
-#### Assignment
+### 存储 (LS)
+
+#### `LS.get(key, defaultValue)`
+获取存储值。
 
 ```javascript
-// 创建
-const asg = new Assignment({ name: '英语作业' });
-
-// 属性
-asg.id;           // 自动生成的唯一 ID
-asg.name;         // '英语作业'
-asg.subject;      // '英语' (自动推断)
-asg.records;      // Map<studentId, StudentRecord>
-
-// 方法
-asg.isEnglish();  // true
-asg.includesStudent(student); // 检查学生是否参与
-asg.getRecord(studentId);     // 获取学生记录
-asg.setRecord(studentId, { done: true, score: 90 });
-asg.getMetrics(students);     // 获取统计 { total, done, pending }
-asg.updateMeta({ name: '新名称', subject: '数学' });
-asg.clone();      // 克隆
-
-// 序列化
-const json = asg.toJSON();
-const restored = Assignment.fromJSON(json);
+import { LS, KEYS } from './utils.js'
+const roster = LS.get(KEYS.LIST, [])
 ```
 
-#### StudentRecord
+#### `LS.set(key, value)`
+设置存储值。
 
 ```javascript
-const record = new StudentRecord({ done: true, score: 95 });
-record.done;      // true
-record.score;     // 95
-record.isEmpty(); // false
+LS.set(KEYS.DATA, assignments)
 ```
 
-#### Preferences
+#### `LS.remove(key)`
+删除存储值。
 
 ```javascript
-const prefs = new Preferences({
-    cardDoneColor: '#68c490',
-    animations: true,
-    showNames: true
-});
-
-prefs.update({ animations: false });
+LS.remove(KEYS.DRAFT)
 ```
 
-#### IdGenerator
+### Toast 提示
+
+#### `Toast.init()`
+初始化 Toast 组件。
 
 ```javascript
-// 生成唯一 ID
-const id = IdGenerator.generate();
-
-// 自定义存在检查
-const id2 = IdGenerator.generate((id) => existingIds.has(id));
+import { Toast } from './utils.js'
+Toast.init()
 ```
 
-### AppState
+#### `Toast.show(message, duration?)`
+显示提示。
 
 ```javascript
-import { state, AppState } from './modules/data/state.js';
-
-// 使用单例
-await state.init();
-
-// 或创建新实例
-const myState = new AppState();
-await myState.init();
+Toast.show('保存成功', 2000)
 ```
+
+#### `Toast.hide()`
+隐藏提示。
+
+```javascript
+Toast.hide()
+```
+
+### 颜色工具 (ColorUtil)
+
+#### `ColorUtil.hexToHsl(hex)`
+HEX 转 HSL。
+
+```javascript
+import { ColorUtil } from './utils.js'
+const hsl = ColorUtil.hexToHsl('#68c490')
+// { h: 145, s: 43, l: 59 }
+```
+
+#### `ColorUtil.hslToHex(h, s, l)`
+HSL 转 HEX。
+
+```javascript
+const hex = ColorUtil.hslToHex(145, 43, 59)
+// '#68c490'
+```
+
+#### `ColorUtil.darken(hex, percent)`
+变暗颜色。
+
+```javascript
+const darker = ColorUtil.darken('#68c490', 20)
+```
+
+### ID 生成器 (IdGenerator)
+
+#### `IdGenerator.generate()`
+生成唯一 ID。
+
+```javascript
+import { IdGenerator } from './utils.js'
+const id = IdGenerator.generate()
+```
+
+### 验证器 (Validator)
+
+#### `Validator.isValidStudentId(id)`
+验证学号格式。
+
+```javascript
+import { Validator } from './utils.js'
+Validator.isValidStudentId('01') // true
+```
+
+#### `Validator.isValidName(name)`
+验证姓名格式。
+
+```javascript
+Validator.isValidName('张三') // true
+```
+
+---
+
+## 📊 状态管理 (app.js)
+
+### State
+
+状态管理对象，包含应用所有数据状态。
 
 #### 属性
 
 | 属性 | 类型 | 说明 |
 |------|------|------|
-| `initialized` | boolean | 是否已初始化 |
-| `students` | Student[] | 学生列表 |
-| `assignments` | Assignment[] | 任务列表 |
-| `currentAssignment` | Assignment | 当前任务 |
-| `currentId` | number | 当前任务 ID |
-| `preferences` | Preferences | 偏好设置 |
-| `studentCount` | number | 学生数量 |
-| `assignmentCount` | number | 任务数量 |
+| `list` | `string[]` | 原始学生名单字符串数组 |
+| `roster` | `object[]` | 解析后的学生对象数组 |
+| `data` | `object[]` | 作业任务列表 |
+| `curId` | `string\|null` | 当前选中任务 ID |
+| `mode` | `'name'\|'id'` | 显示模式 |
+| `scoring` | `boolean` | 是否打分模式 |
+| `animations` | `boolean` | 动画开关 |
+| `prefs` | `object` | 用户偏好设置 |
 
 #### 方法
 
-##### `init(): Promise<void>`
+##### `State.init()`
 初始化状态，加载本地存储数据。
 
 ```javascript
-await state.init();
+import { State } from './app.js'
+State.init()
 ```
 
-##### `createAssignment(name): Assignment`
-创建新任务。
+##### `State.selectAsg(id)`
+选择作业任务。
 
 ```javascript
-const asg = state.createAssignment('数学作业');
+State.selectAsg('asg_123')
 ```
 
-##### `selectAssignment(id): boolean`
-选择任务。
+##### `State.addAsg(name)`
+添加新任务。
 
 ```javascript
-const success = state.selectAssignment(asg.id);
+State.addAsg('数学作业')
 ```
 
-##### `updateAssignment(id, updates): boolean`
-更新任务元数据。
-
-```javascript
-state.updateAssignment(asg.id, { name: '新名称', subject: '语文' });
-```
-
-##### `deleteAssignment(id): boolean`
+##### `State.removeAsg(id)`
 删除任务。
 
 ```javascript
-state.deleteAssignment(asg.id);
+State.removeAsg('asg_123')
 ```
 
-##### `updateRecord(studentId, data): boolean`
+##### `State.renameAsg(id, name)`
+重命名任务。
+
+```javascript
+State.renameAsg('asg_123', '新名称')
+```
+
+##### `State.updRec(studentId, value)`
 更新学生记录。
 
 ```javascript
-state.updateRecord('1', { done: true, score: 90 });
+State.updRec('stu_01', { done: true, score: 90 })
 ```
 
-##### `toggleDone(studentId): boolean`
+##### `State.toggleDone(studentId)`
 切换完成状态。
 
 ```javascript
-state.toggleDone('1');
+State.toggleDone('stu_01')
 ```
 
-##### `invertSelection()`
-反选当前任务。
+##### `State.save()`
+保存数据到 localStorage。
 
 ```javascript
-state.invertSelection();
+State.save()
 ```
 
-##### `getMetrics(asg): Object`
-获取任务统计（带缓存）。
+##### `State.getMetrics(startIdx?, endIdx?)`
+获取统计指标。
 
 ```javascript
-const { total, done, pending } = state.getMetrics(asg);
+const metrics = State.getMetrics(0, 10)
 ```
 
-##### `updatePreferences(updates)`
-更新偏好设置。
+##### `State.normalizeAsg(asg)`
+规范化作业数据。
 
 ```javascript
-state.updatePreferences({ animations: false });
+const normalized = State.normalizeAsg({ id: '1', name: '作业' })
 ```
 
-##### `export(): Object`
-导出所有数据。
+##### `State.parseRoster()`
+解析名单字符串。
 
 ```javascript
-const data = state.export();
+State.parseRoster()
 ```
 
-##### `import(data): boolean`
-导入数据。
+### UI
 
-```javascript
-state.import(exportedData);
-```
-
----
-
-## 🎨 UI 模块 (ui)
-
-### Renderers
-
-```javascript
-import { GridRenderer, SelectRenderer, CounterRenderer } from './modules/ui/renderer.js';
-```
-
-#### GridRenderer
-
-```javascript
-const renderer = new GridRenderer(document.getElementById('grid'));
-
-// 同步卡片池
-renderer.syncCardPool(studentCount);
-
-// 分块同步（大数据量）
-renderer.syncCardPoolChunked(studentCount, () => {
-    console.log('渲染完成');
-});
-
-// 渲染单个卡片
-renderer.renderCard(cardElement, student, record, excluded);
-
-// 销毁
-renderer.destroy();
-```
-
-#### SelectRenderer
-
-```javascript
-const select = new SelectRenderer(triggerEl, dropdownEl, textEl);
-
-select.updateOptions(assignments, currentId, version);
-select.updateSelection(currentId);
-select.open();
-select.close();
-select.toggle();
-```
-
-#### CounterRenderer
-
-```javascript
-const counter = new CounterRenderer(document.getElementById('counter'));
-counter.update(done, total);
-```
-
-### Interactions
-
-```javascript
-import { GridInteraction, MenuInteraction } from './modules/ui/interactions.js';
-```
-
-#### GridInteraction
-
-```javascript
-const interaction = new GridInteraction(gridElement, {
-    onToggle: (id, name) => state.toggleDone(id),
-    onScore: (id, name) => openScorePad(id, name),
-    isScoringMode: () => state.preferences.scoring
-});
-
-// 销毁
-interaction.destroy();
-```
-
-#### MenuInteraction
-
-```javascript
-const menu = new MenuInteraction(menuElement, {
-    onAction: (action) => handleAction(action),
-    closeDelay: 160
-});
-
-menu.open();
-menu.close();
-menu.toggle();
-```
-
-### AppView
-
-```javascript
-import { view, AppView } from './modules/ui/view.js';
-
-// 使用单例
-view.init();
-
-// 或创建新实例
-const myView = new AppView();
-myView.init();
-```
+UI 协调对象，负责渲染和用户交互。
 
 #### 方法
 
-##### `init()`
-初始化视图。
-
-##### `render()`
-完整渲染。
-
-##### `renderStudent(studentId)`
-渲染单个学生。
-
-##### `updatePreferences()`
-更新偏好设置 UI。
-
-##### `destroy()`
-销毁视图。
-
----
-
-## 🔧 工具函数
-
-### DOM 操作
+##### `UI.init()`
+初始化 UI。
 
 ```javascript
-import { $, qs, qsa, createEl } from './modules/index.js';
-
-// 通过 ID 获取元素
-const el = $('elementId');
-
-// 选择器查询
-const first = qs('.class');
-const all = qsa('.class');
-
-// 创建元素
-const div = createEl('div', { 
-    className: 'my-class',
-    dataset: { id: '123' }
-}, '文本内容');
+import { UI } from './app.js'
+UI.init()
 ```
 
-### 格式化
+##### `UI.render()`
+渲染主视图。
 
 ```javascript
-import { ColorUtil, clamp, formatBackupFileName } from './modules/index.js';
-
-// 颜色工具
-ColorUtil.normalizeHex('#68c490');
-ColorUtil.hexToRgb('#68c490');
-ColorUtil.rgbToHex({ r: 104, g: 196, b: 144 });
-ColorUtil.mix('#68c490', '#ffffff', 0.5);
-ColorUtil.withAlpha('#68c490', 0.5);
-
-// 数值限制
-const value = clamp(num, 0, 100);
-
-// 备份文件名
-const filename = formatBackupFileName(new Date());
-// assignmentcheck2_backup_20260411_180530.json
+UI.render()
 ```
 
-### 验证
+##### `UI.renderStudent(id)`
+渲染单个学生卡片。
 
 ```javascript
-import { Validator, isValidObject } from './modules/index.js';
+UI.renderStudent('stu_01')
+```
 
-Validator.isValidScore('95');     // true
-Validator.isValidScore('abc');    // false
-Validator.isValidRecoveryDraft(draft); // true/false
+##### `UI.renderProgress()`
+渲染进度计数器。
+
+```javascript
+UI.renderProgress()
+```
+
+##### `UI.switchView(mode)`
+切换视图模式。
+
+```javascript
+UI.switchView('id') // 或 'name'
 ```
 
 ---
 
-## 📋 完整示例
+## 🎬 业务动作 (actions.js)
 
-### 创建新任务并添加记录
+### Actions
+
+业务动作对象，处理所有用户操作。
+
+#### 菜单操作
+
+##### `Actions.openMenu()`
+打开菜单。
 
 ```javascript
-import { state, appEvents, Events } from './modules/index.js';
-
-// 等待初始化
-await state.init();
-
-// 订阅事件
-appEvents.on(Events.ASG_CREATED, ({ assignment }) => {
-    console.log(`任务 "${assignment.name}" 已创建`);
-});
-
-appEvents.on(Events.RECORD_UPDATED, ({ studentId, record }) => {
-    console.log(`学生 ${studentId}: ${record.done ? '完成' : '未完成'}, 分数: ${record.score}`);
-});
-
-// 创建任务
-const asg = state.createAssignment('英语听写');
-
-// 更新记录
-state.updateRecord('1', { done: true, score: 95 });
-state.updateRecord('2', { done: true, score: 88 });
+import { Actions } from './actions.js'
+Actions.openMenu()
 ```
 
-### 自定义视图
+##### `Actions.closeMenu()`
+关闭菜单。
 
 ```javascript
-import { state, view, appEvents, Events } from './modules/index.js';
+Actions.closeMenu()
+```
+
+#### 任务管理
+
+##### `Actions.openAsgManage()`
+打开任务管理。
+
+```javascript
+Actions.openAsgManage()
+```
+
+##### `Actions.createAsg()`
+创建新任务。
+
+```javascript
+Actions.createAsg()
+```
+
+##### `Actions.renameAsg(id)`
+重命名任务。
+
+```javascript
+Actions.renameAsg('asg_123')
+```
+
+##### `Actions.deleteAsg(id)`
+删除任务。
+
+```javascript
+Actions.deleteAsg('asg_123')
+```
+
+#### 数据导入导出
+
+##### `Actions.exportJSON()`
+导出 JSON。
+
+```javascript
+Actions.exportJSON()
+```
+
+##### `Actions.exportExcel()`
+导出 Excel。
+
+```javascript
+Actions.exportExcel()
+```
+
+##### `Actions.importData()`
+导入数据。
+
+```javascript
+Actions.importData()
+```
+
+#### 分析功能
+
+##### `Actions.showQuizTrend()`
+显示小测趋势。
+
+```javascript
+Actions.showQuizTrend()
+```
+
+##### `Actions.showStudentOverview()`
+显示学生概览。
+
+```javascript
+Actions.showStudentOverview()
+```
+
+#### 其他操作
+
+##### `Actions.invertSelection()`
+反选当前任务。
+
+```javascript
+Actions.invertSelection()
+```
+
+##### `Actions.openRosterEdit()`
+打开名单编辑。
+
+```javascript
+Actions.openRosterEdit()
+```
+
+##### `Actions.openSettings()`
+打开设置。
+
+```javascript
+Actions.openSettings()
+```
+
+---
+
+## 🎨 视图工厂 (action-views.js)
+
+### ActionViews
+
+视图工厂对象，创建各种业务视图。
+
+#### `ActionViews.createTrendView(assignments, options)`
+创建趋势视图。
+
+```javascript
+import { ActionViews } from './action-views.js'
+const view = ActionViews.createTrendView(assignments, { start: 0, end: 10 })
+```
+
+#### `ActionViews.createOverviewView(students, options)`
+创建学生概览视图。
+
+```javascript
+const view = ActionViews.createOverviewView(students, { studentId: 'stu_01' })
+```
+
+#### `ActionViews.createRosterEditor(roster, options)`
+创建名单编辑器。
+
+```javascript
+const editor = ActionViews.createRosterEditor(roster, { onSave: (r) => {} })
+```
+
+#### `ActionViews.createSettingsView(prefs, options)`
+创建设置视图。
+
+```javascript
+const settings = ActionViews.createSettingsView(prefs, { onChange: (p) => {} })
+```
+
+---
+
+## 🪟 UI 组件
+
+### Modal (modal.js)
+
+弹窗组件。
+
+```javascript
+import { Modal } from './modal.js'
 
 // 初始化
-await state.init();
-view.init();
+Modal.init()
 
-// 监听视图事件
-appEvents.on(Events.VIEW_RENDERED, () => {
-    console.log('视图已更新');
-});
+// 打开弹窗
+Modal.open({
+  title: '标题',
+  content: '<p>内容</p>',
+  buttons: [
+    { text: '确定', primary: true, onClick: () => {} },
+    { text: '取消', onClick: () => Modal.close() }
+  ]
+})
 
-// 监听自定义 UI 事件
-appEvents.on('ui:score:request', ({ studentId, studentName }) => {
-    console.log(`为 ${studentName} 打分`);
-    // 打开记分板...
-});
+// 关闭弹窗
+Modal.close()
+
+// 设置标题
+Modal.setTitle('新标题')
+
+// 设置内容
+Modal.setContent('<p>新内容</p>')
+
+// 设置按钮
+Modal.setFooter([{ text: '关闭', onClick: () => Modal.close() }])
+```
+
+### ScorePad (scorepad.js)
+
+分数录入面板。
+
+```javascript
+import { ScorePad } from './scorepad.js'
+
+// 初始化
+ScorePad.init()
+
+// 打开面板
+ScorePad.open({
+  studentId: 'stu_01',
+  studentName: '张三',
+  currentScore: 85,
+  onSubmit: (score) => { console.log(score) }
+})
+
+// 关闭面板
+ScorePad.close()
 ```
 
 ---
 
-## 📝 类型定义 (JSDoc)
+## 🔙 返回处理 (back-handler.js)
+
+### BackHandler
+
+浏览器返回处理。
 
 ```javascript
-/**
- * @typedef {Object} AssignmentData
- * @property {number} id
- * @property {string} name
- * @property {string} subject
- * @property {Object} records
- */
+import { BackHandler } from './back-handler.js'
 
-/**
- * @typedef {Object} StudentData
- * @property {string} id
- * @property {string} name
- * @property {boolean} [noEnglish]
- */
+// 初始化
+BackHandler.init()
 
-/**
- * @typedef {Object} Metrics
- * @property {number} total
- * @property {number} done
- * @property {number} pending
- */
+// 监听返回
+BackHandler.onBack(() => {
+  console.log('用户点击返回')
+})
+
+// 压入状态
+BackHandler.pushState({ page: 'modal' }, '弹窗')
+
+// 弹出状态
+BackHandler.popState()
+```
+
+---
+
+## 🚀 启动流程 (boot.js)
+
+```javascript
+import { State, UI } from './app.js'
+import { Actions } from './actions.js'
+import { ActionViews } from './action-views.js'
+import { Modal } from './modal.js'
+import { ScorePad } from './scorepad.js'
+
+export function bootstrapApp() {
+  const Toast = globalThis.Toast
+
+  if (Toast && Toast.init) Toast.init()
+  Modal.init()
+  ScorePad.init()
+
+  State.init()
+  UI.init()
+}
+
+// 自动执行
+bootstrapApp()
 ```

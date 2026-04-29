@@ -1,14 +1,26 @@
-Toast.init();
-Modal.init();
-ScorePad.init();
-State.init();
-// 延迟显示版本号，让数据加载完成后再显示
-setTimeout(() => {
-    const versionEl = document.getElementById('menuVersion');
+import { State, UI } from './app.js'
+import { Actions } from './actions.js'
+
+export function bootstrapApp() {
+  const Toast = globalThis.Toast
+  const Modal = globalThis.Modal
+  const ScorePad = globalThis.ScorePad
+
+  if (Toast && Toast.init) Toast.init()
+  if (Modal && Modal.init) Modal.init()
+  if (ScorePad && ScorePad.init) ScorePad.init()
+
+  State.init()
+
+  setTimeout(() => {
+    const versionEl = document.getElementById('menuVersion')
     if (versionEl) {
-        const versionText = versionEl.textContent;
-        if (versionText) {
-            Toast.show(versionText);
-        }
+      const versionText = versionEl.textContent
+      if (versionText && Toast) {
+        Toast.show(versionText)
+      }
     }
-}, 500);
+  }, 500)
+}
+
+bootstrapApp()

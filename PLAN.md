@@ -22,16 +22,19 @@
 ## Implementation Plan
 
 ### Phase 1: 测试基线与入口保护
+
 - [ ] 记录当前 `npm run test` 通过状态
 - [ ] 新增/调整入口测试，断言 `index.html` 只包含一个本地 `type="module"` 入口且不再包含传统脚本链注释
 - [ ] 更新 `tests/setup.js` 为 ESM 动态导入模式
 
 ### Phase 2: 基础层迁移
+
 - [ ] 转换 `constants.js` 为命名导出
 - [ ] 转换 `utils.js` 为命名导出，保留 `globalThis` 兼容桥
 - [ ] 确保 `utils.test.js` 不改语义通过
 
 ### Phase 3: 组件层迁移
+
 - [ ] 转换 `back-handler.js`，显式导入所需工具
 - [ ] 转换 `modal.js`，显式导入所需工具
 - [ ] 转换 `bottom-sheet.js`，显式导入所需工具
@@ -39,17 +42,20 @@
 - [ ] 移除组件间隐式加载顺序依赖
 
 ### Phase 4: 业务层迁移
+
 - [ ] 转换 `app.js`，保持 `State`/`UI` API 不变
 - [ ] 转换 `action-views.js`，显式导入依赖
 - [ ] 转换 `actions.js`，显式导入依赖
 - [ ] 确保业务逻辑与数据流不变
 
 ### Phase 5: 启动层迁移
+
 - [ ] 转换 `boot.js` 为 ESM 入口
 - [ ] 导出 `bootstrapApp()` 函数
 - [ ] 浏览器入口自动执行 `State.init(); UI.init();`
 
 ### Phase 6: 测试与 E2E 更新
+
 - [ ] 更新 `tests/setup.js` 支持 ESM 动态导入
 - [ ] 更新 Playwright 配置使用 HTTP 预览服务
 - [ ] E2E 测试改用 `baseURL` 而非 `file://`
@@ -57,6 +63,7 @@
 - [ ] 验证 `npm run test:e2e` 通过
 
 ### Phase 7: 清理与文档
+
 - [ ] 删除 `app-modular.js`
 - [ ] 删除 `module-loader.js`
 - [ ] 删除 `tests/setup-modular.js`
@@ -68,6 +75,7 @@
 - [ ] 更新 `AGENTS.md` 快速开始指引
 
 ### Phase 8: 验证
+
 - [ ] 手工 HTTP 检查：启动 `npm run preview`，确认首页、`/boot.js`、核心模块文件返回 200
 - [ ] 浏览器手检：菜单打开、作业切换、卡片标记、打分面板、导入备份、导出 JSON/Excel、小测趋势、学生概览
 - [ ] 兼容检查：用旧 `tracker_*` 本地数据启动，确认名单、作业、偏好、草稿仍可读取
@@ -88,3 +96,4 @@
 - 本次只做架构收敛，不主动引入 Vite、打包流程、后端或新状态管理库。
 - 现有 `modules/` 不作为迁移基础；它是过期迁移产物，删除优先于修补。
 - 传统全局对象会作为兼容桥暂留，但不再作为主架构文档化。
+

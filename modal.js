@@ -451,7 +451,8 @@ const Modal = {
    */
   show({ title, content, type = 'normal', btns = [], autoFocusEl = null, loadingMask = true }) {
     if (this.isOpen) this.forceClose(false)
-    UI.setGridFrozen(true)
+    const UI = globalThis.UI
+    if (UI) UI.setGridFrozen(true)
     this.releaseActiveInput()
     const usePage = type !== 'full'
     const isFullScreen = !usePage
@@ -508,7 +509,8 @@ const Modal = {
     this.isOpen = this.isClosing = this.isFull = this.isAnimating = this._stableFocusMode = false
     this._lastLayout = null
     clearTimeout(this._pointerGuardTimer); this.el.style.pointerEvents = ''
-    this.unbindViewport(); this.unlockBody(); UI.setGridFrozen(false)
+    const UI = globalThis.UI
+    this.unbindViewport(); this.unlockBody(); if (UI) UI.setGridFrozen(false)
     const r = this.resolve; this.resolve = null; if (r) r(val)
   },
 

@@ -1,6 +1,27 @@
 import { Toast, ColorUtil, formatBackupFileName, SUBJECT_PRESETS, CARD_COLOR_PRESETS } from './utils.js'
 import { ActionViews } from './action-views.js'
 
+const XLSX_CDN_URL = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.core.min.js'
+
+let xlsxLoadingPromise = null
+
+async function loadXLSX() {
+  if (globalThis.XLSX) {
+    return globalThis.XLSX
+  }
+  if (xlsxLoadingPromise) {
+    return xlsxLoadingPromise
+  }
+  xlsxLoadingPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script')
+    script.src = XLSX_CDN_URL
+    script.onload = () => resolve(globalThis.XLSX)
+    script.onerror = () => reject(new Error('XLSX 库加载失败'))
+    document.head.appendChild(script)
+  })
+  return xlsxLoadingPromise
+}
+
 const Actions = {
   ctx: {
     state: null,
@@ -474,6 +495,14 @@ const Actions = {
     )
 
     if (!targetAssignments) return
+
+    let XLSX
+    try {
+      XLSX = await loadXLSX()
+    } catch (e) {
+      Toast.show('Excel 库加载失败，请检查网络连接')
+      return
+    }
 
     const headers = ['学号', '姓名', ...targetAssignments.map(a => a.name)]
     const rows = State.roster.map(stu => {

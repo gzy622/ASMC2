@@ -401,7 +401,8 @@ const Actions = {
   async _showExportRangeDialog(title, note) {
     const State = globalThis.State
     const Modal = globalThis.Modal
-    if (!State || !Modal) return null
+    const ActionViews = globalThis.ActionViews
+    if (!State || !Modal || !ActionViews) return null
 
     if (!State.data.length) {
       Toast.show('暂无作业数据')
@@ -411,36 +412,45 @@ const Actions = {
     const assignments = State.data
 
     const root = document.createElement('div')
-    root.innerHTML = `<section class="export-excel-shell">
-      <div class="export-excel-note">${note}</div>
-      <div class="export-excel-options">
-        <label class="export-excel-option">
+    root.className = 'st-layout'
+    root.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0;position:relative'
+    root.appendChild(ActionViews.createNav(title, () => Modal.close(false)))
+
+    const scroll = document.createElement('div')
+    scroll.className = 'st-scroll-area'
+
+    const section = document.createElement('section')
+    section.className = 'modal-page-section'
+    section.innerHTML = `
+      <div class="modal-page-text" style="margin-bottom:8px">${note}</div>
+      <div class="form-check-group">
+        <label class="form-check">
           <input type="radio" name="exportRange" value="current" checked>
           <span>当前作业（${State.cur?.name || '未选择'}）</span>
         </label>
-        <label class="export-excel-option">
+        <label class="form-check">
           <input type="radio" name="exportRange" value="all">
           <span>全部作业（${assignments.length}个）</span>
         </label>
-        <label class="export-excel-option">
+        <label class="form-check">
           <input type="radio" name="exportRange" value="custom">
           <span>自定义选择</span>
         </label>
       </div>
-      <div class="export-excel-checklist" hidden></div>
-    </section>`
+      <div class="form-check-list" hidden></div>
+    `
 
-    const checklistEl = root.querySelector('.export-excel-checklist')
-    const radioEls = root.querySelectorAll('input[name="exportRange"]')
+    const checklistEl = section.querySelector('.form-check-list')
+    const radioEls = section.querySelectorAll('input[name="exportRange"]')
 
     const updateChecklist = () => {
-      const selected = root.querySelector('input[name="exportRange"]:checked').value
+      const selected = section.querySelector('input[name="exportRange"]:checked').value
       if (selected === 'custom') {
         checklistEl.hidden = false
         checklistEl.innerHTML = '<div style="font-size:.84rem;font-weight:700;color:#5a6774;margin-bottom:8px">选择作业</div>'
         assignments.forEach(asg => {
           const label = document.createElement('label')
-          label.className = 'export-excel-checkitem'
+          label.className = 'form-check'
           label.innerHTML = `<input type="checkbox" value="${asg.id}" checked><span>${asg.name}</span>`
           checklistEl.appendChild(label)
         })
@@ -452,9 +462,14 @@ const Actions = {
     radioEls.forEach(el => el.addEventListener('change', updateChecklist))
     updateChecklist()
 
+    scroll.appendChild(section)
+    root.appendChild(scroll)
+
     const result = await Modal.show({
-      title,
+      title: '',
       content: root,
+      type: 'full',
+      loadingMask: false,
       btns: [
         { text: '取消', type: 'btn-c', val: false },
         { text: '导出', type: 'btn-p', val: true }

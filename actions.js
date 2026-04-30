@@ -555,19 +555,8 @@ const Actions = {
     Toast.show(`已导出 ${targetAssignments.length} 个作业的成绩`)
   },
 
-  async expText() {
+  _generateExportText(targetAssignments) {
     const State = globalThis.State
-    const Modal = globalThis.Modal
-    const ActionViews = globalThis.ActionViews
-    if (!State || !Modal || !ActionViews) return
-
-    const targetAssignments = await this._showExportRangeDialog(
-      '导出文本',
-      '选择要导出的作业项目，选择后将生成纯文本，可以直接粘贴到微信等聊天软件中。'
-    )
-
-    if (!targetAssignments) return
-
     const lines = []
     targetAssignments.forEach(asg => {
       const isEnglish = State.isEnglishAsg(asg)
@@ -601,41 +590,64 @@ const Actions = {
       lines.push(...studentLines)
       lines.push('')
     })
+    return lines.join('\n')
+  },
 
-    const text = lines.join('\n')
+  async expText() {
+    const State = globalThis.State
+    const Modal = globalThis.Modal
+    const ActionViews = globalThis.ActionViews
+    if (!State || !Modal || !ActionViews) return
 
-    const ui = ActionViews.createExportTextShell(text)
+    const targetAssignments = await this._showExportRangeDialog(
+      '导出文本',
+      '选择要导出的作业项目，选择后将生成纯文本，可以直接粘贴到微信等聊天软件中。'
+    )
 
-    const doCopy = async () => {
-      try {
-        await navigator.clipboard.writeText(text)
-        Toast.show(`已复制 ${targetAssignments.length} 个作业到剪贴板`)
-        return true
-      } catch {
-        const textarea = document.createElement('textarea')
-        textarea.value = text
-        textarea.style.position = 'fixed'
-        textarea.style.opacity = '0'
-        document.body.appendChild(textarea)
-        textarea.select()
-        const success = document.execCommand('copy')
-        document.body.removeChild(textarea)
-        if (success) {
-          Toast.show(`已复制 ${targetAssignments.length} 个作业到剪贴板`)
-          return true
-        }
-        return false
-      }
-    }
+    if (!targetAssignments) return
 
-    ui.copyBtn.onclick = async () => {
-      const success = await doCopy()
-      if (success) Modal.close()
-    }
+    const text = this._generateExportText(targetAssignments)
 
-    ui.cancelBtn.onclick = () => Modal.close()
+    const { root, body } = ActionViews.createShell('导出文本预览')
+    body.style.padding = '16px'
 
-    Modal.show({ title: '', content: ui.root, type: 'full', loadingMask: false })
+    const previewSection = document.createElement('section')
+    previewSection.className = 'modal-page-section'
+    previewSection.innerHTML = `
+      <div class="modal-page-text" style="margin-bottom:12px">预览生成的文本内容，确认无误后点击复制：</div>
+      <textarea class="export-text-preview" readonly style="width:100%;min-height:280px;padding:12px;border:1px solid #d0d5dc;border-radius:8px;font-family:monospace;font-size:13px;line-height:1.6;resize:vertical;background:#f8f9fa;color:#333;white-space:pre-wrap;word-break:break-all">${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+      <div class="export-text-stats" style="margin-top:12px;font-size:13px;color:#5a6774">
+        共 ${targetAssignments.length} 个作业，${text.length} 字符
+      </div>
+    `
+    body.appendChild(previewSection)
+
+    const result = await Modal.show({
+      title: '',
+      content: root,
+      type: 'full',
+      loadingMask: false,
+      btns: [
+        { text: '取消', type: 'btn-c', val: false },
+        { text: '复制到剪贴板', type: 'btn-p', val: true }
+      ]
+    })
+
+    if (!result) return
+
+    navigator.clipboard.writeText(text).then(() => {
+      Toast.show(`已复制 ${targetAssignments.length} 个作业到剪贴板`)
+    }).catch(() => {
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+      Toast.show(`已复制 ${targetAssignments.length} 个作业到剪贴板`)
+    })
   },
 
   imp() {

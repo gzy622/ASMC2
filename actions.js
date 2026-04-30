@@ -557,7 +557,9 @@ const Actions = {
 
   async expText() {
     const State = globalThis.State
-    if (!State) return
+    const Modal = globalThis.Modal
+    const ActionViews = globalThis.ActionViews
+    if (!State || !Modal || !ActionViews) return
 
     const targetAssignments = await this._showExportRangeDialog(
       '导出文本',
@@ -602,19 +604,38 @@ const Actions = {
 
     const text = lines.join('\n')
 
-    navigator.clipboard.writeText(text).then(() => {
-      Toast.show(`已复制 ${targetAssignments.length} 个作业到剪贴板`)
-    }).catch(() => {
-      const textarea = document.createElement('textarea')
-      textarea.value = text
-      textarea.style.position = 'fixed'
-      textarea.style.opacity = '0'
-      document.body.appendChild(textarea)
-      textarea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textarea)
-      Toast.show(`已复制 ${targetAssignments.length} 个作业到剪贴板`)
-    })
+    const ui = ActionViews.createExportTextShell(text)
+
+    const doCopy = async () => {
+      try {
+        await navigator.clipboard.writeText(text)
+        Toast.show(`已复制 ${targetAssignments.length} 个作业到剪贴板`)
+        return true
+      } catch {
+        const textarea = document.createElement('textarea')
+        textarea.value = text
+        textarea.style.position = 'fixed'
+        textarea.style.opacity = '0'
+        document.body.appendChild(textarea)
+        textarea.select()
+        const success = document.execCommand('copy')
+        document.body.removeChild(textarea)
+        if (success) {
+          Toast.show(`已复制 ${targetAssignments.length} 个作业到剪贴板`)
+          return true
+        }
+        return false
+      }
+    }
+
+    ui.copyBtn.onclick = async () => {
+      const success = await doCopy()
+      if (success) Modal.close()
+    }
+
+    ui.cancelBtn.onclick = () => Modal.close()
+
+    Modal.show({ title: '', content: ui.root, type: 'full', loadingMask: false })
   },
 
   imp() {

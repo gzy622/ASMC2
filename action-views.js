@@ -143,6 +143,44 @@ const ActionViews = {
     }
   },
 
+  createExportTextShell(text) {
+    const { root, body } = this.createShell('导出文本预览')
+    body.style.padding = '16px'
+
+    const shell = document.createElement('section')
+    shell.className = 'export-text-shell'
+    shell.style.cssText = 'display:flex;flex-direction:column;gap:12px;height:100%'
+
+    const infoSection = document.createElement('div')
+    infoSection.className = 'export-text-info'
+    infoSection.style.cssText = 'font-size:0.86rem;color:#5a6774;line-height:1.5'
+    infoSection.textContent = '预览生成的文本内容，确认后点击复制到剪贴板。'
+
+    const textarea = document.createElement('textarea')
+    textarea.className = 'export-text-preview'
+    textarea.value = text
+    textarea.readOnly = true
+    textarea.style.cssText = 'flex:1;min-height:200px;padding:12px;border:1px solid var(--border);border-radius:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:0.9rem;line-height:1.6;resize:none;outline:none;background:#f8fafc;white-space:pre;overflow:auto'
+
+    const actions = document.createElement('div')
+    actions.className = 'export-text-actions'
+    actions.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;padding-top:8px'
+    actions.innerHTML = `
+      <button class="btn btn-c" type="button" data-role="cancel">取消</button>
+      <button class="btn btn-p" type="button" data-role="copy">复制到剪贴板</button>
+    `
+
+    shell.append(infoSection, textarea, actions)
+    body.appendChild(shell)
+
+    return {
+      root,
+      textarea,
+      cancelBtn: actions.querySelector('[data-role="cancel"]'),
+      copyBtn: actions.querySelector('[data-role="copy"]')
+    }
+  },
+
   createImportShell() {
     const { root, body } = this.createShell('导入备份')
     body.style.padding = '16px'

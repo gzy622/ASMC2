@@ -78,6 +78,7 @@ export const ScorePad
 
 - `tracker_db` - 作业任务
 - `tracker_roster` - 学生名单
+- `tracker_anim` - 动画开关
 - `tracker_prefs` - 用户偏好
 - `tracker_recovery_draft` - 恢复草稿
 - `tracker_scorepad_fast_ten` - 打分面板快捷设置

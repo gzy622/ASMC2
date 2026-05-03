@@ -132,12 +132,14 @@ const ActionViews = {
     </div>
     <div class="asg-manage-form">
       <input class="input-ui" data-role="new-name" placeholder="输入任务名称">
+      <select class="input-ui" data-role="new-subject"></select>
       <button class="btn btn-c" type="button" data-role="new-alt"></button>
       <button class="btn btn-p" type="button" data-role="new-create">创建</button>
     </div>`
     return {
       section,
       newNameInput: section.querySelector('[data-role="new-name"]'),
+      newSubjectSelect: section.querySelector('[data-role="new-subject"]'),
       newAltBtn: section.querySelector('[data-role="new-alt"]'),
       newCreateBtn: section.querySelector('[data-role="new-create"]')
     }

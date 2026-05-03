@@ -79,7 +79,7 @@
 
 .asg-manage-form {
     display: grid;
-    grid-template-columns: minmax(0,2fr) minmax(72px,.6fr) auto;
+    grid-template-columns: minmax(0,2fr) minmax(90px,.8fr) minmax(72px,.6fr) auto;
     gap: 8px;
     align-items: center;
 }

@@ -181,8 +181,21 @@ const Actions = {
       hero = ActionViews.createAsgManageHero()
       introHost.replaceChildren(hero.section)
       hero.newNameInput.placeholder = defaultName
+      const subjectSelect = hero.newSubjectSelect
+      if (subjectSelect && !subjectSelect.childElementCount) {
+        SUBJECT_PRESETS.forEach(subject => {
+          const option = document.createElement('option')
+          option.value = subject
+          option.textContent = subject
+          subjectSelect.appendChild(option)
+        })
+      }
       hero.newAltBtn.textContent = altName
-      hero.newAltBtn.onclick = () => { hero.newNameInput.value = altName; hero.newNameInput.focus() }
+      hero.newAltBtn.onclick = () => {
+        hero.newNameInput.value = altName
+        if (subjectSelect) subjectSelect.value = '英语'
+        hero.newNameInput.focus()
+      }
       hero.newCreateBtn.onclick = createAsg
       hero.newNameInput.addEventListener('keydown', e => {
         if (e.key !== 'Enter') return
@@ -196,7 +209,8 @@ const Actions = {
       const refs = mountHero()
       const name = (refs.newNameInput.value || '').trim() || (refs.newNameInput.placeholder || '').trim()
       if (!name) return Toast.show('任务名称不能为空')
-      State.addAsg(name)
+      const subject = (refs.newSubjectSelect?.value || '英语').trim() || '英语'
+      State.addAsg(name, subject)
       refs.newNameInput.value = ''
       refs.newNameInput.placeholder = defaultName
       upd()

@@ -437,9 +437,10 @@ const State = {
 
   get cur() { return this.asgMap.get(this.curId) || this.data[0] },
 
-  addAsg(n) {
+  addAsg(n, subject = '英语') {
     const id = IdGenerator.generateUnique(id => this.asgMap.has(id))
-    this.data.push(this.normalizeAsg({ id, name: (n || '').trim() || '未命名任务', subject: '英语', records: {} }))
+    const safeSubject = String(subject || '').trim() || '英语'
+    this.data.push(this.normalizeAsg({ id, name: (n || '').trim() || '未命名任务', subject: safeSubject, records: {} }))
     this._ensureAsgIndex()
     this.curId = id
     this.markGridDirty({ full: true })
